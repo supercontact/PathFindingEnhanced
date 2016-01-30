@@ -29,7 +29,7 @@ public class AstarNodeInfo : Node {
 	}
 }
 
-public class NodeFComparer : IComparer<Node> {
+public class NodeFComparer : IComparer<AstarNodeInfo> {
 	public int Compare (AstarNodeInfo x, AstarNodeInfo y)
 	{
 		return x.f - y.f > 0 ? 1 : (x.f - y.f < 0 ? -1 : 0);
@@ -66,14 +66,16 @@ public class Graph {
 		return result;
 	}
 
-	public List<Node> Astar(Node source, Node destination, H h = estimatedCost) {
+	public List<Node> Astar(Node source, Node destination, H h = null) {
+		if (h == null)
+			h = estimatedCost;
 		AstarNodeInfo sourceInfo = new AstarNodeInfo(source);
 		IntervalHeap<AstarNodeInfo> open = new IntervalHeap<AstarNodeInfo>(new NodeFComparer());
 		open.Add(ref sourceInfo.handle, sourceInfo);
 		sourceInfo.open = true;
 		sourceInfo.f = h(source, destination);
 		sourceInfo.g = 0;
-		AstarNodeInfo nodeInfo_current;
+		AstarNodeInfo nodeInfo_current = null;
 		while(open.Count > 0) {
 			nodeInfo_current = open.DeleteMin();
 			if (nodeInfo_current == destination) break;
@@ -99,7 +101,7 @@ public class Graph {
 			nodeInfo_current.closed = true;
 		}
 		if (nodeInfo_current != destination) throw new Exception();
-		backtrack(destination);
+		return backtrack(nodeInfo_current);
 	}
 }
 
