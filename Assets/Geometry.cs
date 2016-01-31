@@ -165,6 +165,7 @@ public class Halfedge {
 	/// </summary>
 	public Vertex vertex;
 	public Face face;
+    public bool isBorder = false;
 
 	public double Length() {
 		return (vertex.p - prev.vertex.p).magnitude;
@@ -312,12 +313,12 @@ public class Geometry {
 						et.opposite = new Halfedge();
 						et.opposite.opposite = et;
 						et.opposite.vertex = et.prev.vertex;
+                        et.opposite.isBorder = true;
 						halfedges.Add(et.opposite);
 					}
 				}
 			}
 		}
-		//throw new UnityException("WOW");
 		
 		// Reconnect all newly created halfedges on a boundary
 		for (int i = 0; i < halfedges.Count; i++) {
@@ -343,7 +344,6 @@ public class Geometry {
 				} while (temp != first);
 			}
 		}
-		//throw new UnityException("WOW");
 
 		for (int i = 0; i < vertices.Count; i++) {
 			vertices[i].ClearEdgeArray();
@@ -378,6 +378,19 @@ public class Geometry {
 		mesh.triangles = trigs;
 		mesh.RecalculateNormals();
 	}
+
+    public Graph ToGraph() {
+        Graph result = new Graph();
+        for (int i = 0; i < faces.Count; i++) {
+            result.addNode(faces[i].CalculateCenter());
+        }
+        for (int i = 0; i < halfedges.Count; i++) {
+            if (!halfedges[i].isBorder && !halfedges[i].opposite.isBorder) {
+                result.addArc(halfedges[i].face.index, halfedges[i].opposite.face.index);
+            }
+        }
+        return result;
+    }
 
 	/// <summary>
 	/// Calculates the Lc sparse matrix (unweighted laplacien matrix) multilied by the factor.

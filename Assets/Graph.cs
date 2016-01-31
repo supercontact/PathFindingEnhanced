@@ -7,12 +7,28 @@ using C5;
 public class Node {
 	public int index;
 	public List<Arc> arcs;
-	public Vector2 center;
+	public Vector3 center;
+    public Node(Vector3 _center, int _index) {
+        center = _center;
+        index = _index;
+        arcs = new List<Arc>();
+    }
 }
 
-public class Arc {
-	public Node from, to;
-	public float distance;
+public class Arc
+{
+    public Node from, to;
+    public float distance;
+    public Arc(Node _from, Node _to) {
+        from = _from;
+        to = _to;
+        distance = (from.center - to.center).magnitude;
+    }
+    public Arc(Node _from, Node _to, float _distance) {
+        from = _from;
+        to = _to;
+        distance = _distance;
+    }
 }
 
 public class AstarNodeInfo : Node {
@@ -22,10 +38,8 @@ public class AstarNodeInfo : Node {
 	public bool open = false;
 	public bool closed = false;
 	public IPriorityQueueHandle<AstarNodeInfo> handle;
-	public AstarNodeInfo(Node node) {
-		index = node.index;
+	public AstarNodeInfo(Node node) : base(node.center, node.index) {
 		arcs = node.arcs;
-		center = node.center;
 	}
 }
 
@@ -39,12 +53,16 @@ public class NodeFComparer : IComparer<AstarNodeInfo> {
 public class Graph {
 	public List<Node> nodes;
 
-	public void addNode(Node node) {
-		nodes.Add(node);
-	}
+    public Graph() {
+        nodes = new List<Node>();
+    }
+	public int addNode(Vector3 center) {
+		nodes.Add(new Node(center, nodes.Count));
+        return nodes.Count - 1;
+    }
 
-	public void addArc(Arc a) {
-		nodes[a.from.index].arcs.Add(a);
+	public void addArc(int fromIndex, int toIndex) {
+		nodes[fromIndex].arcs.Add(new Arc(nodes[fromIndex], nodes[toIndex]));
 	}
 
 	public delegate float H(Node from, Node to);
@@ -67,10 +85,14 @@ public class Graph {
 	}
 
 	public List<Node> Astar(Node source, Node destination, H h = null) {
-		if (h == null)
+        AstarNodeInfo[] infoTable = new AstarNodeInfo[nodes.Count];
+
+        if (h == null)
 			h = estimatedCost;
 		AstarNodeInfo sourceInfo = new AstarNodeInfo(source);
-		IntervalHeap<AstarNodeInfo> open = new IntervalHeap<AstarNodeInfo>(new NodeFComparer());
+        infoTable[sourceInfo.index] = sourceInfo;
+
+        IntervalHeap<AstarNodeInfo> open = new IntervalHeap<AstarNodeInfo>(new NodeFComparer());
 		open.Add(ref sourceInfo.handle, sourceInfo);
 		sourceInfo.open = true;
 		sourceInfo.f = h(source, destination);
@@ -78,9 +100,15 @@ public class Graph {
 		AstarNodeInfo nodeInfo_current = null;
 		while(open.Count > 0) {
 			nodeInfo_current = open.DeleteMin();
-			if (nodeInfo_current == destination) break;
+			if (nodeInfo_current.index == destination.index) break;
 			foreach (Arc a in nodeInfo_current.arcs) {
-				AstarNodeInfo nodeInfo_successor = new AstarNodeInfo(a.to);
+                AstarNodeInfo nodeInfo_successor;
+                if (infoTable[a.to.index] == null) {
+                    nodeInfo_successor = new AstarNodeInfo(a.to);
+                    infoTable[a.to.index] = nodeInfo_successor;
+                } else {
+                    nodeInfo_successor = infoTable[a.to.index];
+                }
 				float successor_current_cost = nodeInfo_current.g + a.distance;
 				if (nodeInfo_successor.open) {
 					if (nodeInfo_successor.g <= successor_current_cost) 
@@ -88,7 +116,10 @@ public class Graph {
 				} else if (nodeInfo_successor.closed) {
 					if (nodeInfo_successor.g <= successor_current_cost) 
 						continue;
-				} else {
+                    open.Add(ref nodeInfo_successor.handle, nodeInfo_successor);
+                    nodeInfo_successor.closed = false;
+                    nodeInfo_successor.open = true;
+                } else {
 					open.Add(ref nodeInfo_successor.handle, nodeInfo_successor);
 					nodeInfo_successor.open = true;
 					nodeInfo_successor.h = h(nodeInfo_successor, destination);
@@ -100,7 +131,7 @@ public class Graph {
 			}
 			nodeInfo_current.closed = true;
 		}
-		if (nodeInfo_current != destination) throw new Exception();
+		if (nodeInfo_current.index != destination.index) throw new Exception();
 		return backtrack(nodeInfo_current);
 	}
 }
