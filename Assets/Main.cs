@@ -4,8 +4,11 @@ using System.Collections.Generic;
 
 public class Main : MonoBehaviour {
 
+    public Camera cam;
     public GameObject obj;
     public GameObject mark;
+    public ProgressiveQuadtree tree;
+    public ProgressiveOctree tree2;
 
     Mesh mesh;
     Geometry geo;
@@ -16,8 +19,8 @@ public class Main : MonoBehaviour {
         obj.GetComponent<MeshFilter>().mesh = mesh;
         geo = new Geometry(mesh);
         graph = geo.ToGraph();
-        
-	}
+        TestQuadtree();
+    }
 
     void Test () {
         int i1 = Random.Range(0, graph.nodes.Count);
@@ -28,11 +31,26 @@ public class Main : MonoBehaviour {
             m.transform.position = node.center;
         }
     }
+
+    void TestQuadtree () {
+        tree = new ProgressiveQuadtree(10, new Vector2(-5, -5));
+        //tree2 = new ProgressiveOctree(4, new Vector3(-2, -2, -2));
+    }
 	
 	// Update is called once per frame
 	void Update () {
 	    if (Input.GetKeyDown(KeyCode.Space)) {
             Test();
+        }
+
+        if (Input.GetMouseButtonDown(0)) {
+            Ray ray = cam.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+            if (Physics.Raycast(ray, out hit)) {
+                //tree.DivideUntilLevel(new Vector2(hit.point.x, hit.point.z), 5);
+                tree.DivideLineUntilLevel(new Vector2(0, 0), new Vector2(hit.point.x, hit.point.z), 5);
+                //tree2.DivideUntilLevel(hit.point, 5);
+            }
         }
 	}
 }

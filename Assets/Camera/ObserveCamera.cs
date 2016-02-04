@@ -29,6 +29,8 @@ public class ObserveCamera : MonoBehaviour {
 
 	private bool clicking;
 
+    public GameObject ball;
+
 	// Start is called at the beginning
 	void Start () {
 		targetDistance = (target.transform.position - transform.position).magnitude;
@@ -93,6 +95,8 @@ public class ObserveCamera : MonoBehaviour {
 			transform.position = target.transform.position + distance * (transform.rotation * Vector3.back) + offset;
 			center.transform.localPosition = new Vector3(0, 0, distance);
 		}
+
+        ball.transform.position = transform.position + Vector3.up * 110;
 	}
 
 	public void Clicking(BaseEventData data) {
