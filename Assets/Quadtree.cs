@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class Quadtree {
 
@@ -9,8 +10,10 @@ public class Quadtree {
     public Quadtree parent;
     public Quadtree[,] children;
     public bool blocked = false;
+    public bool containsBlocked = false;
 
     public static Vector2[] dirs = { Vector2.right, Vector2.up, Vector2.left, Vector2.down };
+    public static Vector2[] dirsFromCorner = { Vector2.right, Vector2.right + Vector2.up, Vector2.up, Vector2.zero };
 
     public Quadtree(float _size, Vector2 _corner) {
         level = 0;
@@ -94,11 +97,12 @@ public class Quadtree {
 
     public void DivideUntilLevel(Vector2 p, int maxLevel, bool markAsBlocked = false) {
         if (Contains(p)) {
+            containsBlocked = containsBlocked || markAsBlocked;
             if (level < maxLevel) {
                 CreateChildren();
                 int xi = Mathf.FloorToInt((p.x - corner.x) * 2 / size);
                 int yi = Mathf.FloorToInt((p.y - corner.y) * 2 / size);
-                children[xi, yi].DivideUntilLevel(p, maxLevel);
+                children[xi, yi].DivideUntilLevel(p, maxLevel, markAsBlocked);
             } else {
                 blocked = markAsBlocked;
             }
@@ -107,16 +111,137 @@ public class Quadtree {
 
     public void DivideLineUntilLevel(Vector2 p1, Vector2 p2, int maxLevel, bool markAsBlocked = false) {
         if (IntersectLine(p1, p2)) {
+            containsBlocked = containsBlocked || markAsBlocked;
             if (level < maxLevel) {
                 CreateChildren();
                 for (int xi = 0; xi < 2; xi++)
                     for (int yi = 0; yi < 2; yi++)
-                        children[xi, yi].DivideLineUntilLevel(p1, p2, maxLevel);
+                        children[xi, yi].DivideLineUntilLevel(p1, p2, maxLevel, markAsBlocked);
             } else {
                 blocked = markAsBlocked;
             }
         }
     }
+
+    public bool LineOfSight(Vector2 p1, Vector2 p2) {
+        if (!containsBlocked) return true;
+        if (IntersectLine(p1, p2)) {
+            if (children != null) {
+                for (int xi = 0; xi < 2; xi++)
+                    for (int yi = 0; yi < 2; yi++)
+                        if (!children[xi, yi].LineOfSight(p1, p2)) return false;
+                return true;
+            } else {
+                return blocked;
+            }
+        }
+        return true;
+    }
+
+    public void Leaves(List<Quadtree> result, out int levelMax) {
+        int max = level;
+        if (children != null) {
+            for (int xi = 0; xi < 2; xi++) {
+                for (int yi = 0; yi < 2; yi++) {
+                    int maxTemp;
+                    children[xi, yi].Leaves(result, out maxTemp);
+                    max = Mathf.Max(max, maxTemp);
+                }
+            }
+        } else {
+            result.Add(this);
+        }
+        levelMax = max;
+    }
+
+    public List<Quadtree> Leaves() {
+        List<Quadtree> result = new List<Quadtree>();
+        int levelMax = 0;
+        Leaves(result, out levelMax);
+        return result;
+    }
+
+    public int getLevelMax() {
+        List<Quadtree> result = new List<Quadtree>();
+        int levelMax = 0;
+        Leaves(result, out levelMax);
+        return levelMax;
+    }
+
+    public Graph toCenterGraph() {
+        List<Quadtree> leaves = Leaves();
+        Dictionary<Quadtree, Node> dict = new Dictionary<Quadtree, Node>();
+        int count = 0;
+        List<Node> nodes = new List<Node>();
+        foreach (Quadtree q in leaves) {
+            Node n = new Node(q.corner + Vector2.one * q.size / 2, count);
+            dict.Add(q, n);
+            nodes.Add(n);
+            count++;
+        }
+        foreach (Quadtree q in leaves) {
+            Node n = dict[q];
+            for (int i = 0; i < 4; i++) {
+                Quadtree found = parent.BackwardFind((Vector2) n.center + dirs[i] * size);
+                if (found == null) continue;
+                if (found.level < q.level) {
+                    Node nFound = dict[found];
+                    n.arcs.Add(new Arc(n, nFound));
+                    nFound.arcs.Add(new Arc(nFound, n));
+                } else if (found.level == q.level) {
+                    Node nFound = dict[found];
+                    n.arcs.Add(new Arc(n, nFound));
+                }
+            }
+        }
+        Graph g = new Graph();
+        g.nodes = nodes;
+        return g;
+    }
+
+    public Graph toCornerGraph() {
+        List<Quadtree> leaves = new List<Quadtree>();
+        int levelMax;
+        Leaves(leaves, out levelMax);
+        int factor = 1 << levelMax;
+        Dictionary<int, Node> dict = new Dictionary<int, Node>();
+        List<Node> nodes = new List<Node>();
+        int count = 0;
+        foreach (Quadtree q in leaves) {
+
+            Node[] quadCornerNodes = new Node[4];
+            for (int i = 0; i < 4; i++) {
+                Vector2 quadCorner = q.corner + dirsFromCorner[i] * q.size;
+                int hashX = Mathf.RoundToInt((quadCorner.x - corner.x) / size * factor);
+                int hashY = Mathf.RoundToInt((quadCorner.y - corner.y) / size * factor);
+                int hash = hashX << levelMax * 2 + hashY;
+                Node n;
+                if (!dict.TryGetValue(hash, out n)) {
+                    n = new Node(quadCorner, count);
+                    dict.Add(hash, n);
+                    nodes.Add(n);
+                    count++;
+                }
+                quadCornerNodes[i] = n;
+            }
+
+            for (int i = 0; i < 4; i++) {
+                Vector2 qcenter = q.corner + Vector2.one * q.size / 2;
+                Quadtree found = parent.BackwardFind(qcenter + dirs[i] * q.size);
+                if (found == null) continue;
+                if (found.level < q.level) {
+                    quadCornerNodes[i].arcs.Add(new Arc(quadCornerNodes[i], quadCornerNodes[(i + 1) % 4]));
+                    quadCornerNodes[(i + 1) % 4].arcs.Add(new Arc(quadCornerNodes[(i + 1) % 4], quadCornerNodes[i]));
+                } else if (found.level == q.level) {
+                    quadCornerNodes[i].arcs.Add(new Arc(quadCornerNodes[i], quadCornerNodes[(i + 1) % 4]));
+                }
+            }
+        }
+        Graph g = new Graph();
+        g.nodes = nodes;
+        return g;
+    }
+
 
     GameObject disp;
     public void TestDisplay() {

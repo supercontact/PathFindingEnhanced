@@ -33,12 +33,15 @@ public class Main : MonoBehaviour {
     }
 
     void TestQuadtree () {
-        tree = new ProgressiveQuadtree(10, new Vector2(-5, -5));
-        //tree2 = new ProgressiveOctree(4, new Vector3(-2, -2, -2));
+        //tree = new ProgressiveQuadtree(10, new Vector2(-5, -5));
+        tree2 = new ProgressiveOctree(4, new Vector3(-2, -2, -2));
     }
-	
-	// Update is called once per frame
-	void Update () {
+
+    Vector3 a = Vector3.zero;
+    Vector3 b = Vector3.zero;
+    Vector3 c = new Vector3(0.1f, 0, 0);
+    // Update is called once per frame
+    void Update () {
 	    if (Input.GetKeyDown(KeyCode.Space)) {
             Test();
         }
@@ -48,8 +51,13 @@ public class Main : MonoBehaviour {
             RaycastHit hit;
             if (Physics.Raycast(ray, out hit)) {
                 //tree.DivideUntilLevel(new Vector2(hit.point.x, hit.point.z), 5);
-                tree.DivideLineUntilLevel(new Vector2(0, 0), new Vector2(hit.point.x, hit.point.z), 5);
+                //tree.DivideLineUntilLevel(new Vector2(0, 0), new Vector2(hit.point.x, hit.point.z), 5);
                 //tree2.DivideUntilLevel(hit.point, 5);
+
+                a = b;
+                b = c;
+                c = hit.point;
+                tree2.DivideTriangleUntilLevel(a, b, c, 5);
             }
         }
 	}
