@@ -13,7 +13,7 @@ public class Octree
     }
     public OctreeNode root;
 
-    public static int[,] dir = { { 1, 0, 0 }, { 0, 1, 0 }, { -1, 0, 0 }, { 0, -1, 0 }, { 0, 0, 1 }, { 0, 0, -1 } };
+    public static int[,] dir = { { 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 }, { 0, 0, 1 }, { 0, 0, -1 } };
     public static int[,] cornerDir = { { 0, 0, 0 }, { 1, 0, 0 }, { 1, 1, 0 }, { 0, 1, 0 }, { 0, 0, 1 }, { 1, 0, 1 }, { 1, 1, 1 }, { 0, 1, 1 } };
 
     public Octree(float _size, Vector3 _corner, int _maxLevel) {
@@ -120,39 +120,67 @@ public class Octree
 
     public Graph ToCornerGraph() {
         List<OctreeNode> leaves = root.Leaves();
-        Dictionary<int, Node> dict = new Dictionary<int, Node>();
+        Dictionary<long, Node> dict = new Dictionary<long, Node>();
+		Dictionary<long, bool> arcAdded = new Dictionary<long, bool>();
         List<Node> nodes = new List<Node>();
         int count = 0;
         int rowCount = 1 << maxLevel + 1;
-        foreach (OctreeNode q in leaves) {
-            Node[] quadCornerNodes = new Node[4];
-            for (int i = 0; i < 4; i++) {
-                Vector2 quadCorner = q.corners(i);
-                int[] cornerIndex = q.cornerIndex(i);
-                int hash = cornerIndex[0] * rowCount + cornerIndex[1];
-                Node n;
-                if (!dict.TryGetValue(hash, out n)) {
-                    n = new Node(quadCorner, count);
-                    dict.Add(hash, n);
-                    nodes.Add(n);
-                    count++;
-                }
-                quadCornerNodes[i] = n;
-            }
+        foreach (OctreeNode o in leaves) {
+			if (!o.blocked) {
+	            Node[] octCornerNodes = new Node[8];
+	            for (int i = 0; i < 8; i++) {
+	                Vector3 octCorner = o.corners(i);
+	                int[] cornerIndex = o.cornerIndex(i);
+					long hash = (cornerIndex[0] * rowCount + cornerIndex[1]) * rowCount + cornerIndex[2];
+	                Node n;
+	                if (!dict.TryGetValue(hash, out n)) {
+	                    n = new Node(octCorner, count);
+	                    dict.Add(hash, n);
+	                    nodes.Add(n);
+	                    count++;
+	                }
+	                octCornerNodes[i] = n;
+	            }
 
-            if (q.level == 0) continue;
-            for (int i = 0; i < 4; i++) {
-                OctreeNode found = Find(new int[] { q.index[0] + dir[i, 0], q.index[1] + dir[i, 1] }, q.level);
-                if (found == null || (q.blocked && found.blocked)) continue;
-                int c1 = (i + 1) % 4;
-                int c2 = (i + 2) % 4;
-                if (found.level < q.level) {
-                    quadCornerNodes[c1].arcs.Add(new Arc(quadCornerNodes[c1], quadCornerNodes[c2]));
-                    quadCornerNodes[c2].arcs.Add(new Arc(quadCornerNodes[c2], quadCornerNodes[c1]));
-                } else if (found.children == null) {
-                    quadCornerNodes[c1].arcs.Add(new Arc(quadCornerNodes[c1], quadCornerNodes[c2]));
-                }
-            }
+	            for (int i = 0; i < 6; i++) {
+	                OctreeNode found = Find(new int[] { o.index[0] + dir[i, 0], o.index[1] + dir[i, 1] }, o.level);
+
+					if (found == null || found.blocked || found.level < o.level || found.children == null) {
+						int k = i / 2;
+						int[,] c = new int[4,3];
+						int counter = 0;
+						for (int t1 = -1; t1 <= 1; t1++) {
+							for (int t2 = -1; t2 <= 1; t2++) {
+								c[counter,k] = dir[i, k];
+								c[counter,(k+1) % 3] = t1;
+								c[counter,(k+2) % 3] = t2 * t1;
+								for (int j = 0; j < 3; j++) {
+									c[counter, j] += o.index[j] * 2 + 1;
+									c[counter, j] <<= (maxLevel - o.level);
+								}
+								counter++;
+							}
+						}
+						for (int t = 0; t < 4; t++) {
+							int[] arcCenter = new int[3];
+							for (int j = 0; j < 3; j++) {
+								arcCenter[j] = (c[t,j] + c[(t+1) % 4, j]) / 2;
+							}
+							long arcHash = (arcCenter[0] * rowCount * 2 + arcCenter[1]) * rowCount * 2 + arcCenter[2];
+							bool temp;
+							if (!arcAdded.TryGetValue(arcHash, out temp)) {
+								arcAdded[arcHash] = true;
+								long hash1 = (c[t,0] / 2 * rowCount + c[t,1] / 2) * rowCount + c[t,2] / 2;
+								long hash2 = (c[(t+1) % 4,0] / 2 * rowCount + c[(t+1) % 4,1] / 2) * rowCount + c[(t+1) % 4,2] / 2;
+								Node c1 = dict[hash1];
+								Node c2 = dict[hash2];
+								c1.arcs.Add(new Arc(c1, c2));
+								c2.arcs.Add(new Arc(c2, c1));
+							}
+						}
+	                }
+	            }
+			}
         }
         Graph g = new Graph();
         g.nodes = nodes;

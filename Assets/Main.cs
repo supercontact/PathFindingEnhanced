@@ -33,11 +33,11 @@ public class Main : MonoBehaviour {
     }
 
     void TestQuadtree () {
-        //tree = new ProgressiveQuadtree(10, new Vector2(-5, -5), 5);
-        tree2 = new ProgressiveOctree(4, new Vector3(-2, -2, -2), 5);
+        tree = new ProgressiveQuadtree(10, new Vector2(-5, -5), 5);
+        //tree2 = new ProgressiveOctree(4, new Vector3(-2, -2, -2), 5);
 
-        //tree.TestDisplay();
-        tree2.TestDisplay();
+        tree.TestDisplay();
+        //tree2.TestDisplay();
     }
 
     Vector3 a = Vector3.zero;
@@ -57,14 +57,14 @@ public class Main : MonoBehaviour {
                 b = c;
                 c = hit.point;
                 //tree.Divide(new Vector2(hit.point.x, hit.point.z), true);
-                //tree.DivideLine(b, c, true);
+                tree.DivideLine(b, c, true);
                 //tree2.Divide(hit.point, true);
-                tree2.DivideTriangle(a, b, c, true);
+                //tree2.DivideTriangle(a, b, c, true);
 
-                //tree.TestDisplay();
-                tree2.TestDisplay();
+                tree.TestDisplay();
+                //tree2.TestDisplay();
                 //graph = tree.ToCenterGraph();
-                //graph = tree.ToCornerGraph();
+                graph = tree.ToCornerGraph();
             }
         }
 	}

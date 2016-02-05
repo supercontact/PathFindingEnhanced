@@ -119,35 +119,39 @@ public class Quadtree
         List<Node> nodes = new List<Node>();
         int count = 0;
         int rowCount = 1 << maxLevel + 1;
-        foreach (QuadtreeNode q in leaves) {
-            Node[] quadCornerNodes = new Node[4];
-            for (int i = 0; i < 4; i++) {
-                Vector2 quadCorner = q.corners(i);
-                int[] cornerIndex = q.cornerIndex(i);
-                int hash = cornerIndex[0] * rowCount + cornerIndex[1];
-                Node n;
-                if (!dict.TryGetValue(hash, out n)) {
-                    n = new Node(quadCorner, count);
-                    dict.Add(hash, n);
-                    nodes.Add(n);
-                    count++;
-                }
-                quadCornerNodes[i] = n;
-            }
+        /*foreach (QuadtreeNode q in leaves) {
+			if (!q.blocked) {
+	            
+	            for (int i = 0; i < 4; i++) {
+	                Vector2 quadCorner = q.corners(i);
+	                int[] cornerIndex = q.cornerGlobalIndex(i);
+	                int hash = cornerIndex[0] * rowCount + cornerIndex[1];
+	                Node n;
+	                if (!dict.TryGetValue(hash, out n)) {
+	                    n = new Node(quadCorner, count);
+	                    dict.Add(hash, n);
+	                    nodes.Add(n);
+	                    count++;
+	                }
+	            }
+			}
+		}*/
+		foreach (QuadtreeNode q in leaves) {
+			//Node[] quadCornerNodes = new Node[4];
 
-            if (q.level == 0) continue;
-            for (int i = 0; i < 4; i++) {
-                QuadtreeNode found = Find(new int[] { q.index[0] + dir[i, 0], q.index[1] + dir[i, 1] }, q.level);
-                if (found == null || (q.blocked && found.blocked)) continue;
-                int c1 = (i + 1) % 4;
-                int c2 = (i + 2) % 4;
-                if (found.level < q.level) {
-                    quadCornerNodes[c1].arcs.Add(new Arc(quadCornerNodes[c1], quadCornerNodes[c2]));
-                    quadCornerNodes[c2].arcs.Add(new Arc(quadCornerNodes[c2], quadCornerNodes[c1]));
-                } else if (found.children == null) {
-                    quadCornerNodes[c1].arcs.Add(new Arc(quadCornerNodes[c1], quadCornerNodes[c2]));
-                }
-            }
+
+	        for (int i = 0; i < 4; i++) {
+	            QuadtreeNode found = Find(new int[] { q.index[0] + dir[i, 0], q.index[1] + dir[i, 1] }, q.level);
+	            int c1 = (i + 1) % 4;
+	            int c2 = (i + 2) % 4;
+				if (found == null || found.blocked || found.level < q.level) {
+	                quadCornerNodes[c1].arcs.Add(new Arc(quadCornerNodes[c1], quadCornerNodes[c2]));
+	                quadCornerNodes[c2].arcs.Add(new Arc(quadCornerNodes[c2], quadCornerNodes[c1]));
+	            } else if (found.children == null) {
+	                quadCornerNodes[c1].arcs.Add(new Arc(quadCornerNodes[c1], quadCornerNodes[c2]));
+	            }
+	        }
+
         }
         Graph g = new Graph();
         g.nodes = nodes;
@@ -178,7 +182,7 @@ public class QuadtreeNode {
     public Vector2 corners(int n) {
         return tree.corner + size * (new Vector2(index[0] + Quadtree.cornerDir[n, 0], index[1] + Quadtree.cornerDir[n, 1]));
     }
-    public int[] cornerIndex(int n) {
+    public int[] cornerGlobalIndex(int n) {
         int s = 1 << (tree.maxLevel - level);
         return new int[] { (index[0] + Quadtree.cornerDir[n, 0]) * s, (index[1] + Quadtree.cornerDir[n, 1]) * s };
     }
