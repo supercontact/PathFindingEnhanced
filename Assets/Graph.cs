@@ -134,6 +134,82 @@ public class Graph {
 		if (nodeInfo_current.index != destination.index) throw new Exception();
 		return backtrack(nodeInfo_current);
 	}
+
+	public List<Node> Astar2(Node source, Node destination, H h = null) {
+		AstarNodeInfo[] infoTable = new AstarNodeInfo[nodes.Count];
+		
+		if (h == null)
+			h = estimatedCost;
+		AstarNodeInfo sourceInfo = new AstarNodeInfo(source);
+		infoTable[sourceInfo.index] = sourceInfo;
+		
+		IntervalHeap<AstarNodeInfo> open = new IntervalHeap<AstarNodeInfo>(new NodeFComparer());
+		open.Add(ref sourceInfo.handle, sourceInfo);
+		sourceInfo.open = true;
+		sourceInfo.f = h(source, destination);
+		sourceInfo.g = 0;
+		AstarNodeInfo nodeInfo_current = null;
+		while(open.Count > 0) {
+			nodeInfo_current = open.DeleteMin();
+			if (nodeInfo_current.index == destination.index) break;
+			foreach (Arc a in nodeInfo_current.arcs) {
+				AstarNodeInfo nodeInfo_successor;
+				if (infoTable[a.to.index] == null) {
+					nodeInfo_successor = new AstarNodeInfo(a.to);
+					infoTable[a.to.index] = nodeInfo_successor;
+				} else {
+					nodeInfo_successor = infoTable[a.to.index];
+				}
+				float successor_current_cost = nodeInfo_current.g + a.distance;
+				if (nodeInfo_successor.open) {
+					if (nodeInfo_successor.g <= successor_current_cost) 
+						continue;
+				} else if (nodeInfo_successor.closed) {
+					if (nodeInfo_successor.g <= successor_current_cost) 
+						continue;
+					open.Add(ref nodeInfo_successor.handle, nodeInfo_successor);
+					nodeInfo_successor.closed = false;
+					nodeInfo_successor.open = true;
+				} else {
+					open.Add(ref nodeInfo_successor.handle, nodeInfo_successor);
+					nodeInfo_successor.open = true;
+					nodeInfo_successor.h = h(nodeInfo_successor, destination);
+				}
+				nodeInfo_successor.g = successor_current_cost;
+				nodeInfo_successor.f = nodeInfo_successor.g + nodeInfo_successor.h;
+				open.Replace(nodeInfo_successor.handle, nodeInfo_successor);
+				nodeInfo_successor.parent = nodeInfo_current;
+			}
+			nodeInfo_current.closed = true;
+		}
+		if (nodeInfo_current.index != destination.index) throw new Exception();
+		return backtrack(nodeInfo_current);
+	}
+
+	public void UpdateVertex(Arc a, AstarNodeInfo[] infoTable, H h, IntervalHeap<AstarNodeInfo> open) {
+		AstarNodeInfo current = infoTable[a.from.index];
+		AstarNodeInfo successor = infoTable[a.to.index];
+		float g_old = successor.g;
+		ComputeCost(a, infoTable);
+		if (successor.g < g_old) {
+			if (successor.open) {
+				open.Replace(successor.handle, successor);
+			} else {
+				open.
+			}
+		}
+	}
+
+	public void ComputeCost(Arc a, AstarNodeInfo[] infoTable) {
+		AstarNodeInfo current = infoTable[a.from.index];
+		AstarNodeInfo successor = infoTable[a.to.index];
+		if (successor.g > current.g + a.distance) {
+			successor.parent = current;
+			successor.g = current.g + a.distance;
+			successor.f = successor.g + successor.h;
+		}
+	}
+
 }
 
 
