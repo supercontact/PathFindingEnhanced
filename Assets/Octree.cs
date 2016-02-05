@@ -123,68 +123,61 @@ public class Octree
         Dictionary<long, Node> dict = new Dictionary<long, Node>();
 		Dictionary<long, bool> arcAdded = new Dictionary<long, bool>();
         List<Node> nodes = new List<Node>();
-        int count = 0;
-        int rowCount = 1 << maxLevel + 1;
+
         foreach (OctreeNode o in leaves) {
-			if (!o.blocked) {
-	            Node[] octCornerNodes = new Node[8];
-	            for (int i = 0; i < 8; i++) {
-	                Vector3 octCorner = o.corners(i);
-	                int[] cornerIndex = o.cornerIndex(i);
-					long hash = (cornerIndex[0] * rowCount + cornerIndex[1]) * rowCount + cornerIndex[2];
-	                Node n;
-	                if (!dict.TryGetValue(hash, out n)) {
-	                    n = new Node(octCorner, count);
-	                    dict.Add(hash, n);
-	                    nodes.Add(n);
-	                    count++;
-	                }
-	                octCornerNodes[i] = n;
-	            }
-
-	            for (int i = 0; i < 6; i++) {
-	                OctreeNode found = Find(new int[] { o.index[0] + dir[i, 0], o.index[1] + dir[i, 1] }, o.level);
-
-					if (found == null || found.blocked || found.level < o.level || found.children == null) {
-						int k = i / 2;
-						int[,] c = new int[4,3];
-						int counter = 0;
-						for (int t1 = -1; t1 <= 1; t1++) {
-							for (int t2 = -1; t2 <= 1; t2++) {
-								c[counter,k] = dir[i, k];
-								c[counter,(k+1) % 3] = t1;
-								c[counter,(k+2) % 3] = t2 * t1;
-								for (int j = 0; j < 3; j++) {
-									c[counter, j] += o.index[j] * 2 + 1;
-									c[counter, j] <<= (maxLevel - o.level);
-								}
-								counter++;
-							}
-						}
-						for (int t = 0; t < 4; t++) {
-							int[] arcCenter = new int[3];
-							for (int j = 0; j < 3; j++) {
-								arcCenter[j] = (c[t,j] + c[(t+1) % 4, j]) / 2;
-							}
-							long arcHash = (arcCenter[0] * rowCount * 2 + arcCenter[1]) * rowCount * 2 + arcCenter[2];
-							bool temp;
-							if (!arcAdded.TryGetValue(arcHash, out temp)) {
-								arcAdded[arcHash] = true;
-								long hash1 = (c[t,0] / 2 * rowCount + c[t,1] / 2) * rowCount + c[t,2] / 2;
-								long hash2 = (c[(t+1) % 4,0] / 2 * rowCount + c[(t+1) % 4,1] / 2) * rowCount + c[(t+1) % 4,2] / 2;
-								Node c1 = dict[hash1];
-								Node c2 = dict[hash2];
-								c1.arcs.Add(new Arc(c1, c2));
-								c2.arcs.Add(new Arc(c2, c1));
-							}
-						}
-	                }
-	            }
-			}
+            for (int i = 0; i < 6; i++) {
+                OctreeNode found = Find(new int[] { o.index[0] + dir[i, 0], o.index[1] + dir[i, 1], o.index[2] + dir[i, 2] }, o.level);
+                if ((!o.blocked && (found == null || found.blocked || found.children == null)) || (found != null && found.level < o.level)) {
+                    int k = i / 2;
+                    int[][] c = new int[4][];
+                    int counter = 0;
+                    for (int t1 = -1; t1 <= 1; t1 += 2) {
+                        for (int t2 = -1; t2 <= 1; t2 += 2) {
+                            c[counter] = new int[3];
+                            c[counter][k] = dir[i, k];
+                            c[counter][(k + 1) % 3] = t1;
+                            c[counter][(k + 2) % 3] = t2 * t1;
+                            for (int j = 0; j < 3; j++) {
+                                c[counter][j] += o.index[j] * 2 + 1;
+                                c[counter][j] >>= 1;
+                                c[counter][j] <<= (maxLevel - o.level);
+                            }
+                            counter++;
+                        }
+                    }
+                    for (int t = 0; t < 4; t++) {
+                        long arcKey = GetArcKey(c[t], c[(t + 1) % 4]);
+                        bool temp;
+                        if (!arcAdded.TryGetValue(arcKey, out temp)) {
+                            arcAdded[arcKey] = true;
+                            Node n1 = GetNodeFromDict(c[t], dict, nodes);
+                            Node n2 = GetNodeFromDict(c[(t + 1) % 4], dict, nodes);
+                            n1.arcs.Add(new Arc(n1, n2));
+                            n2.arcs.Add(new Arc(n2, n1));
+                        }
+                    }
+                }
+            }
         }
         Graph g = new Graph();
         g.nodes = nodes;
         return g;
+    }
+
+    private Node GetNodeFromDict(int[] index, Dictionary<long, Node> dict, List<Node> nodes) {
+        long rowCount = 1 << maxLevel + 1;
+        long key = (index[0] * rowCount + index[1]) * rowCount + index[2];
+        Node result;
+        if (!dict.TryGetValue(key, out result)) {
+            result = new Node(IndexToPosition(index), nodes.Count);
+            dict.Add(key, result);
+            nodes.Add(result);
+        }
+        return result;
+    }
+    private long GetArcKey(int[] index1, int[] index2) {
+        long rowCount = 1 << (maxLevel + 1) + 1;
+        return ((index1[0] + index2[0]) * rowCount + index1[1] + index2[1]) * rowCount + index1[2] + index2[2];
     }
 
     public void TestDisplay() {
@@ -389,6 +382,11 @@ public class OctreeNode
                 disp.transform.localScale = Vector3.one * size * 0.9f;
             }
             disp.GetComponent<MeshRenderer>().material.color = blocked ? Color.red : new Color(level * 0.05f, level * 0.05f, level * 0.15f);
+            if (!blocked) {
+                disp.GetComponent<MeshRenderer>().enabled = false;
+            } else {
+                disp.GetComponent<MeshRenderer>().enabled = true;
+            }
         }
     }
 

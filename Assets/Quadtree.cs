@@ -117,38 +117,19 @@ public class Quadtree
         List<QuadtreeNode> leaves = root.Leaves();
         Dictionary<int, Node> dict = new Dictionary<int, Node>();
         List<Node> nodes = new List<Node>();
-        int count = 0;
-        int rowCount = 1 << maxLevel + 1;
-        /*foreach (QuadtreeNode q in leaves) {
-			if (!q.blocked) {
-	            
-	            for (int i = 0; i < 4; i++) {
-	                Vector2 quadCorner = q.corners(i);
-	                int[] cornerIndex = q.cornerGlobalIndex(i);
-	                int hash = cornerIndex[0] * rowCount + cornerIndex[1];
-	                Node n;
-	                if (!dict.TryGetValue(hash, out n)) {
-	                    n = new Node(quadCorner, count);
-	                    dict.Add(hash, n);
-	                    nodes.Add(n);
-	                    count++;
-	                }
-	            }
-			}
-		}*/
+
 		foreach (QuadtreeNode q in leaves) {
-			//Node[] quadCornerNodes = new Node[4];
-
-
 	        for (int i = 0; i < 4; i++) {
 	            QuadtreeNode found = Find(new int[] { q.index[0] + dir[i, 0], q.index[1] + dir[i, 1] }, q.level);
-	            int c1 = (i + 1) % 4;
-	            int c2 = (i + 2) % 4;
-				if (found == null || found.blocked || found.level < q.level) {
-	                quadCornerNodes[c1].arcs.Add(new Arc(quadCornerNodes[c1], quadCornerNodes[c2]));
-	                quadCornerNodes[c2].arcs.Add(new Arc(quadCornerNodes[c2], quadCornerNodes[c1]));
-	            } else if (found.children == null) {
-	                quadCornerNodes[c1].arcs.Add(new Arc(quadCornerNodes[c1], quadCornerNodes[c2]));
+				if ((!q.blocked && (found == null || found.blocked)) || (found != null && found.level < q.level)) {
+                    Node n1 = GetNodeFromDict(q.cornerGlobalIndex((i + 1) % 4), dict, nodes);
+                    Node n2 = GetNodeFromDict(q.cornerGlobalIndex((i + 2) % 4), dict, nodes);
+                    n1.arcs.Add(new Arc(n1, n2));
+                    n2.arcs.Add(new Arc(n2, n1));
+	            } else if (!q.blocked && found.children == null) {
+                    Node n1 = GetNodeFromDict(q.cornerGlobalIndex((i + 1) % 4), dict, nodes);
+                    Node n2 = GetNodeFromDict(q.cornerGlobalIndex((i + 2) % 4), dict, nodes);
+                    n1.arcs.Add(new Arc(n1, n2));
 	            }
 	        }
 
@@ -156,6 +137,18 @@ public class Quadtree
         Graph g = new Graph();
         g.nodes = nodes;
         return g;
+    }
+
+    private Node GetNodeFromDict(int[] index, Dictionary<int, Node> dict, List<Node> nodes) {
+        int rowCount = 1 << maxLevel + 1;
+        int key = index[0] * rowCount + index[1];
+        Node result;
+        if (!dict.TryGetValue(key, out result)) {
+            result = new Node(IndexToPosition(index), nodes.Count);
+            dict.Add(key, result);
+            nodes.Add(result);
+        }
+        return result;
     }
 
     public void TestDisplay() {

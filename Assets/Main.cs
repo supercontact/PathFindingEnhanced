@@ -26,18 +26,26 @@ public class Main : MonoBehaviour {
         int i1 = Random.Range(0, graph.nodes.Count);
         int i2 = Random.Range(0, graph.nodes.Count);
         List<Node> path = graph.Astar(graph.nodes[i1], graph.nodes[i2]);
+        Vector3[] pathV = new Vector3[path.Count];
+        int i = 0;
         foreach (Node node in path) {
             GameObject m = Instantiate(mark);
             m.transform.position = node.center;
+            pathV[i] = node.center;
+            i++;
         }
+        LineRenderer lr = new GameObject().AddComponent<LineRenderer>();
+        lr.SetVertexCount(path.Count);
+        lr.SetPositions(pathV);
+        lr.SetWidth(0.01f, 0.01f);
     }
 
     void TestQuadtree () {
-        tree = new ProgressiveQuadtree(10, new Vector2(-5, -5), 5);
-        //tree2 = new ProgressiveOctree(4, new Vector3(-2, -2, -2), 5);
+        //tree = new ProgressiveQuadtree(10, new Vector2(-5, -5), 5);
+        tree2 = new ProgressiveOctree(4, new Vector3(-2, -2, -2), 5);
 
-        tree.TestDisplay();
-        //tree2.TestDisplay();
+        //tree.TestDisplay();
+        tree2.TestDisplay();
     }
 
     Vector3 a = Vector3.zero;
@@ -57,14 +65,14 @@ public class Main : MonoBehaviour {
                 b = c;
                 c = hit.point;
                 //tree.Divide(new Vector2(hit.point.x, hit.point.z), true);
-                tree.DivideLine(b, c, true);
+                //tree.DivideLine(b, c, true);
                 //tree2.Divide(hit.point, true);
-                //tree2.DivideTriangle(a, b, c, true);
+                tree2.DivideTriangle(a, b, c, true);
 
-                tree.TestDisplay();
-                //tree2.TestDisplay();
+                //tree.TestDisplay();
+                tree2.TestDisplay();
                 //graph = tree.ToCenterGraph();
-                graph = tree.ToCornerGraph();
+                graph = tree2.ToCornerGraph();
             }
         }
 	}
