@@ -18,7 +18,7 @@ public class Main : MonoBehaviour {
         mesh = MeshFactory.ReadMeshFromFile("cow", 1.5f, new Vector3(0.15f, 0.15f, 0));
         obj.GetComponent<MeshFilter>().mesh = mesh;
         geo = new Geometry(mesh);
-        graph = geo.ToGraph();
+        //graph = geo.ToGraph();
         TestQuadtree();
     }
 
@@ -33,8 +33,11 @@ public class Main : MonoBehaviour {
     }
 
     void TestQuadtree () {
-        //tree = new ProgressiveQuadtree(10, new Vector2(-5, -5));
-        tree2 = new ProgressiveOctree(4, new Vector3(-2, -2, -2));
+        //tree = new ProgressiveQuadtree(10, new Vector2(-5, -5), 5);
+        tree2 = new ProgressiveOctree(4, new Vector3(-2, -2, -2), 5);
+
+        //tree.TestDisplay();
+        tree2.TestDisplay();
     }
 
     Vector3 a = Vector3.zero;
@@ -50,14 +53,18 @@ public class Main : MonoBehaviour {
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             RaycastHit hit;
             if (Physics.Raycast(ray, out hit)) {
-                //tree.DivideUntilLevel(new Vector2(hit.point.x, hit.point.z), 5);
-                //tree.DivideLineUntilLevel(new Vector2(0, 0), new Vector2(hit.point.x, hit.point.z), 5);
-                //tree2.DivideUntilLevel(hit.point, 5);
-
                 a = b;
                 b = c;
                 c = hit.point;
-                tree2.DivideTriangleUntilLevel(a, b, c, 5);
+                //tree.Divide(new Vector2(hit.point.x, hit.point.z), true);
+                //tree.DivideLine(b, c, true);
+                //tree2.Divide(hit.point, true);
+                tree2.DivideTriangle(a, b, c, true);
+
+                //tree.TestDisplay();
+                tree2.TestDisplay();
+                //graph = tree.ToCenterGraph();
+                //graph = tree.ToCornerGraph();
             }
         }
 	}
