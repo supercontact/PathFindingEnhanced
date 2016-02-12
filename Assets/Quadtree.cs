@@ -77,6 +77,10 @@ public class Quadtree
         root.DivideLineUntilLevel(p1, p2, maxLevel, markAsBlocked);
     }
 
+    public bool LineOfSight(Vector2 p1, Vector2 p2) {
+        return root.LineOfSight(p1, p2);
+    }
+
     public Graph ToCenterGraph() {
         List<QuadtreeNode> leaves = root.Leaves();
         Dictionary<QuadtreeNode, Node> dict = new Dictionary<QuadtreeNode, Node>();
@@ -262,7 +266,7 @@ public class QuadtreeNode {
                         if (!children[xi, yi].LineOfSight(p1, p2)) return false;
                 return true;
             } else {
-                return blocked;
+                return !blocked;
             }
         }
         return true;

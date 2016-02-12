@@ -7,8 +7,8 @@ public class Main : MonoBehaviour {
     public Camera cam;
     public GameObject obj;
     public GameObject mark;
-    public ProgressiveQuadtree tree;
-    public ProgressiveOctree tree2;
+    public Quadtree tree;
+    public Octree tree2;
 
     Mesh mesh;
     Geometry geo;
@@ -25,7 +25,9 @@ public class Main : MonoBehaviour {
     void Test () {
         int i1 = Random.Range(0, graph.nodes.Count);
         int i2 = Random.Range(0, graph.nodes.Count);
-        List<Node> path = graph.Astar(graph.nodes[i1], graph.nodes[i2]);
+        //List<Node> path = graph.AStar(graph.nodes[i1], graph.nodes[i2]);
+        List<Node> path = graph.ThetaStar(graph.nodes[i1], graph.nodes[i2], tree2);
+        if (path == null) return;
         Vector3[] pathV = new Vector3[path.Count];
         int i = 0;
         foreach (Node node in path) {
@@ -42,7 +44,15 @@ public class Main : MonoBehaviour {
 
     void TestQuadtree () {
         //tree = new ProgressiveQuadtree(10, new Vector2(-5, -5), 5);
-        tree2 = new ProgressiveOctree(4, new Vector3(-2, -2, -2), 5);
+        //tree2 = new ProgressiveOctree(4, new Vector3(-2, -2, -2), 5);
+        tree2 = new Octree(4, new Vector3(-2, -2, -2), 6);
+
+        foreach (Face f in geo.faces) {
+            f.FillEdgeArray();
+            tree2.DivideTriangle(f.edges[0].vertex.p, f.edges[1].vertex.p, f.edges[2].vertex.p, true);
+            f.ClearEdgeArray();
+        }
+        graph = tree2.ToCornerGraph();
 
         //tree.TestDisplay();
         tree2.TestDisplay();
@@ -57,7 +67,7 @@ public class Main : MonoBehaviour {
             Test();
         }
 
-        if (Input.GetMouseButtonDown(0)) {
+        /*if (Input.GetMouseButtonDown(0)) {
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             RaycastHit hit;
             if (Physics.Raycast(ray, out hit)) {
@@ -74,6 +84,6 @@ public class Main : MonoBehaviour {
                 //graph = tree.ToCenterGraph();
                 graph = tree2.ToCornerGraph();
             }
-        }
+        }*/
 	}
 }

@@ -56,6 +56,24 @@ public class Octree
     public OctreeNode Find(Vector3 p) {
         return Find(PositionToIndex(p));
     }
+    public bool IsBlocked(int[] gridIndex, bool outsideIsBlocked = false) {
+        int xi = gridIndex[0];
+        int yi = gridIndex[1];
+        int zi = gridIndex[2];
+        int t = 1 << maxLevel;
+        if (xi >= t || xi < 0 || yi >= t || yi < 0 || zi >= t || zi < 0) return outsideIsBlocked;
+        OctreeNode current = root;
+        for (int l = 0; l < maxLevel; l++) {
+            t >>= 1;
+            if (!current.containsBlocked) return false;
+            if (current.children == null) return current.blocked;
+            current = current.children[xi / t, yi / t, zi / t];
+            xi %= t;
+            yi %= t;
+            zi %= t;
+        }
+        return current.blocked;
+    }
 
     public void Divide(Vector3 p, bool markAsBlocked = false) {
         int[] gridIndex = PositionToIndex(p);
@@ -80,6 +98,125 @@ public class Octree
 
     public void DivideTriangle(Vector3 p1, Vector3 p2, Vector3 p3, bool markAsBlocked = false) {
         root.DivideTriangleUntilLevel(p1, p2, p3, maxLevel, markAsBlocked);
+    }
+
+    public bool LineOfSight(Vector3 p1, Vector3 p2) {
+        Vector3 p1g = (p1 - corner) / cellSize;
+        Vector3 p2g = (p2 - corner) / cellSize;
+        int[,] p = new int[2,3];
+        int[] d = new int[3];
+        int[] sign = new int[3];
+        int[] f = new int[2];
+
+        for (int i = 0; i < 3; i++) {
+            SnapToInt(p1g[i], out p[0, i]);
+            SnapToInt(p2g[i], out p[1, i]);
+            d[i] = p[1, i] - p[0, i];
+            if (d[i] < 0) {
+                d[i] = -d[i];
+                sign[i] = -1;
+            } else {
+                sign[i] = 1;
+            }
+        }
+        int[] pBlock = { p[0, 0] + (sign[0] - 1) / 2, p[0, 1] + (sign[1] - 1) / 2, p[0, 2] + (sign[2] - 1) / 2 };
+
+        int longAxis;
+        if (d[0] >= d[1] && d[0] >= d[2]) longAxis = 0;
+        else if (d[1] >= d[2]) longAxis = 1;
+        else longAxis = 2;
+        if (d[longAxis] == 0) throw new System.Exception("Line of sight check on same point!");
+        int axis0 = (longAxis + 1) % 3;
+        int axis1 = (longAxis + 2) % 3;
+
+        while (p[0, longAxis] != p[1, longAxis]) {
+            f[0] += d[axis0];
+            f[1] += d[axis1];
+            if (f[0] >= d[longAxis] && f[1] < d[longAxis]) {
+                f[0] -= d[longAxis];
+                if (d[axis1] != 0) {
+                    if (IsBlocked(pBlock)) return false;
+                } else {
+                    bool sight = false;
+                    pBlock[axis1] -= 1;
+                    if (!IsBlocked(pBlock)) sight = true;
+                    pBlock[axis1] += 1;
+                    if (!IsBlocked(pBlock)) sight = true;
+                    if (!sight) return false;
+                }
+                p[0, axis0] += sign[axis0];
+                pBlock[axis0] += sign[axis0];
+            } else if (f[1] >= d[longAxis] && f[0] < d[longAxis]) {
+                f[1] -= d[longAxis];
+                if (d[axis0] != 0) {
+                    if (IsBlocked(pBlock)) return false;
+                } else {
+                    bool sight = false;
+                    pBlock[axis0] -= 1;
+                    if (!IsBlocked(pBlock)) sight = true;
+                    pBlock[axis0] += 1;
+                    if (!IsBlocked(pBlock)) sight = true;
+                    if (!sight) return false;
+                }
+                p[0, axis1] += sign[axis1];
+                pBlock[axis1] += sign[axis1];
+            } else if (f[0] >= d[longAxis] && f[1] >= d[longAxis]) {
+                f[0] -= d[longAxis];
+                f[1] -= d[longAxis];
+                if (IsBlocked(pBlock)) return false;
+                int det = f[0] * d[axis1] - f[1] * d[axis0];
+                if (det > 0) {
+                    pBlock[axis0] += sign[axis0];
+                    if (IsBlocked(pBlock)) return false;
+                    pBlock[axis1] += sign[axis1];
+                } else if (det < 0) {
+                    pBlock[axis1] += sign[axis1];
+                    if (IsBlocked(pBlock)) return false;
+                    pBlock[axis0] += sign[axis0];
+                } else {
+                    pBlock[axis0] += sign[axis0];
+                    pBlock[axis1] += sign[axis1];
+                }
+                p[0, axis0] += sign[axis0];
+                p[0, axis1] += sign[axis1];
+            }
+
+            if (f[0] != 0 && f[1] != 0 && IsBlocked(pBlock)) return false;
+            if (d[axis0] == 0 && d[axis1] != 0) {
+                bool sight = false;
+                pBlock[axis0] -= 1;
+                if (!IsBlocked(pBlock)) sight = true;
+                pBlock[axis0] += 1;
+                if (!IsBlocked(pBlock)) sight = true;
+                if (!sight) return false;
+            } else if (d[axis0] != 0 && d[axis1] == 0) {
+                bool sight = false;
+                pBlock[axis1] -= 1;
+                if (!IsBlocked(pBlock)) sight = true;
+                pBlock[axis1] += 1;
+                if (!IsBlocked(pBlock)) sight = true;
+                if (!sight) return false;
+            } else if (d[axis0] == 0 && d[axis1] == 0) {
+                bool sight = false;
+                pBlock[axis0] -= 1;
+                if (!IsBlocked(pBlock)) sight = true;
+                pBlock[axis1] -= 1;
+                if (!IsBlocked(pBlock)) sight = true;
+                pBlock[axis0] += 1;
+                if (!IsBlocked(pBlock)) sight = true;
+                pBlock[axis1] += 1;
+                if (!IsBlocked(pBlock)) sight = true;
+                if (!sight) return false;
+            }
+            p[0, longAxis] += sign[longAxis];
+            pBlock[longAxis] += sign[longAxis];
+        }
+        return true;
+    }
+
+    private bool SnapToInt(float n, out int i, float epsilon = 0.001f) {
+        i = Mathf.FloorToInt(n + epsilon);
+        return Mathf.Abs(n - i) <= epsilon;
     }
 
     public Graph ToCenterGraph() {
@@ -240,6 +377,10 @@ public class OctreeNode
         float r = size / 2 - tolerance;
         p1 -= c;
         p2 -= c;
+        /*if (level == 1) {
+            Debug.Log(p1 + " " + p2 + " " + r);
+            throw new System.Exception();
+        }*/
         float xm, xp, ym, yp, zm, zp;
         xm = Mathf.Min(p1.x, p2.x);
         xp = Mathf.Max(p1.x, p2.x);
@@ -258,6 +399,7 @@ public class OctreeNode
             if (d > rr) return false;
         }
 
+        //if (level >= 1) throw new System.Exception();
         return true;
     }
 
@@ -327,9 +469,9 @@ public class OctreeNode
         }
     }
 
-    public bool LineOfSight(Vector3 p1, Vector3 p2) {
+    /*public bool LineOfSight(Vector3 p1, Vector3 p2) {
         if (!containsBlocked) return true;
-        if (IntersectLine(p1, p2, tree.cellSize * 0.02f)) {
+        if (IntersectLine(p1, p2)) {
             if (children != null) {
                 for (int xi = 0; xi < 2; xi++)
                     for (int yi = 0; yi < 2; yi++)
@@ -337,11 +479,11 @@ public class OctreeNode
                             if (!children[xi, yi, zi].LineOfSight(p1, p2)) return false;
                 return true;
             } else {
-                return blocked;
+                return !blocked;
             }
         }
         return true;
-    }
+    }*/
 
     private void Leaves(List<OctreeNode> result) {
         if (children != null) {
