@@ -114,6 +114,7 @@ public class Quadtree
         }
         Graph g = new Graph();
         g.nodes = nodes;
+        g.CalculateConnectivity();
         return g;
     }
 
@@ -140,6 +141,7 @@ public class Quadtree
         }
         Graph g = new Graph();
         g.nodes = nodes;
+        g.CalculateConnectivity();
         return g;
     }
 

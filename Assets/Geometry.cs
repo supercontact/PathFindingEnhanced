@@ -382,11 +382,11 @@ public class Geometry {
     public Graph ToGraph() {
         Graph result = new Graph();
         for (int i = 0; i < faces.Count; i++) {
-            result.addNode(faces[i].CalculateCenter());
+            result.AddNode(faces[i].CalculateCenter());
         }
         for (int i = 0; i < halfedges.Count; i++) {
             if (!halfedges[i].isBorder && !halfedges[i].opposite.isBorder) {
-                result.addArc(halfedges[i].face.index, halfedges[i].opposite.face.index);
+                result.AddArc(halfedges[i].face.index, halfedges[i].opposite.face.index);
             }
         }
         return result;

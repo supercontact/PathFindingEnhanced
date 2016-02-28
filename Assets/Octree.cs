@@ -23,6 +23,47 @@ public class Octree
         root = new OctreeNode(0, new int[] { 0, 0, 0 }, null, this);
     }
 
+    public void BuildFromMeshes(Mesh[] meshes, float normalExpansion = 0) {
+        for (int i = 0; i < meshes.Length; i++) {
+            int[] triangles = meshes[i].triangles;
+            Vector3[] verts = meshes[i].vertices;
+            Vector3[] vertsNormal = meshes[i].normals;
+            for (int j = 0; j < triangles.Length / 3; j++) {
+                DivideTriangle(
+                    verts[triangles[3 * j]] + vertsNormal[triangles[3 * j]] * normalExpansion,
+                    verts[triangles[3 * j + 1]] + vertsNormal[triangles[3 * j + 1]] * normalExpansion,
+                    verts[triangles[3 * j + 2]] + vertsNormal[triangles[3 * j + 2]] * normalExpansion, true);
+            }
+        }
+    }
+    public void BuildFromGameObject(GameObject gameObject, float normalExpansion = 0, bool recursive = true) {
+        if (gameObject.GetComponent<MeshFilter>() != null) {
+            Mesh mesh = Object.Instantiate(gameObject.GetComponent<MeshFilter>().mesh);
+            if (mesh != null) {
+                MeshFactory.MergeOverlappingPoints(mesh);
+                mesh.RecalculateNormals();
+
+                int[] triangles = mesh.triangles;
+                Vector3[] vertsOld = mesh.vertices;
+                Vector3[] vertsNormal = mesh.normals;
+                Vector3[] verts = new Vector3[vertsOld.Length];
+                for (int j = 0; j < verts.Length; j++) {
+                    verts[j] = gameObject.transform.TransformPoint(vertsOld[j]) + gameObject.transform.TransformDirection(vertsNormal[j]) * normalExpansion;
+                }
+                for (int j = 0; j < triangles.Length / 3; j++) {
+                    DivideTriangle(verts[triangles[3 * j]], verts[triangles[3 * j + 1]], verts[triangles[3 * j + 2]], true);
+                }
+            }
+        }
+        if (recursive) {
+            for (int i = 0; i < gameObject.transform.childCount; i++) {
+                if (gameObject.transform.GetChild(i).gameObject.activeInHierarchy) {
+                    BuildFromGameObject(gameObject.transform.GetChild(i).gameObject, normalExpansion);
+                }
+            }
+        }
+    }
+
     public int[] PositionToIndex(Vector3 p) {
         p -= corner;
         float d = cellSize;
@@ -109,8 +150,10 @@ public class Octree
         int[] f = new int[2];
 
         for (int i = 0; i < 3; i++) {
-            SnapToInt(p1g[i], out p[0, i]);
-            SnapToInt(p2g[i], out p[1, i]);
+            //FloorToIntSnap(p1g[i], out p[0, i]);
+            //FloorToIntSnap(p2g[i], out p[1, i]);
+            p[0, i] = Mathf.RoundToInt(p1g[i]);
+            p[1, i] = Mathf.RoundToInt(p2g[i]);
             d[i] = p[1, i] - p[0, i];
             if (d[i] < 0) {
                 d[i] = -d[i];
@@ -125,7 +168,7 @@ public class Octree
         if (d[0] >= d[1] && d[0] >= d[2]) longAxis = 0;
         else if (d[1] >= d[2]) longAxis = 1;
         else longAxis = 2;
-        if (d[longAxis] == 0) throw new System.Exception("Line of sight check on same point!");
+        if (d[longAxis] == 0) return true;
         int axis0 = (longAxis + 1) % 3;
         int axis1 = (longAxis + 2) % 3;
 
@@ -214,11 +257,12 @@ public class Octree
         return true;
     }
 
-    private bool SnapToInt(float n, out int i, float epsilon = 0.001f) {
+    private bool FloorToIntSnap(float n, out int i, float epsilon = 0.001f) {
         i = Mathf.FloorToInt(n + epsilon);
         return Mathf.Abs(n - i) <= epsilon;
     }
 
+    public Graph centerGraph;
     public Graph ToCenterGraph() {
         List<OctreeNode> leaves = root.Leaves();
         Dictionary<OctreeNode, Node> dict = new Dictionary<OctreeNode, Node>();
@@ -252,9 +296,13 @@ public class Octree
         }
         Graph g = new Graph();
         g.nodes = nodes;
+        g.CalculateConnectivity();
+        centerGraph = g;
         return g;
     }
 
+    public Graph cornerGraph;
+    public Dictionary<long, Node> cornerGraphDictionary;
     public Graph ToCornerGraph() {
         List<OctreeNode> leaves = root.Leaves();
         Dictionary<long, Node> dict = new Dictionary<long, Node>();
@@ -276,7 +324,7 @@ public class Octree
                             c[counter][(k + 2) % 3] = t2 * t1;
                             for (int j = 0; j < 3; j++) {
                                 c[counter][j] += o.index[j] * 2 + 1;
-                                c[counter][j] >>= 1;
+                                c[counter][j] /= 2;
                                 c[counter][j] <<= (maxLevel - o.level);
                             }
                             counter++;
@@ -298,14 +346,17 @@ public class Octree
         }
         Graph g = new Graph();
         g.nodes = nodes;
+        g.CalculateConnectivity();
+        cornerGraph = g;
+        cornerGraphDictionary = dict;
         return g;
     }
 
-    private Node GetNodeFromDict(int[] index, Dictionary<long, Node> dict, List<Node> nodes) {
+    private Node GetNodeFromDict(int[] index, Dictionary<long, Node> dict, List<Node> nodes = null) {
         long rowCount = 1 << maxLevel + 1;
         long key = (index[0] * rowCount + index[1]) * rowCount + index[2];
-        Node result;
-        if (!dict.TryGetValue(key, out result)) {
+        Node result = null;
+        if (!dict.TryGetValue(key, out result) && nodes != null) {
             result = new Node(IndexToPosition(index), nodes.Count);
             dict.Add(key, result);
             nodes.Add(result);
@@ -315,6 +366,24 @@ public class Octree
     private long GetArcKey(int[] index1, int[] index2) {
         long rowCount = 1 << (maxLevel + 1) + 1;
         return ((index1[0] + index2[0]) * rowCount + index1[1] + index2[1]) * rowCount + index1[2] + index2[2];
+    }
+
+    public List<Node> FindBoundingCornerGraphNodes(Vector3 position) {
+        List<Node> result = new List<Node>();
+        OctreeNode node = Find(position);
+        if (node != null) {
+            for (int i = 0; i < 8; i++) {
+                int[] cornerIndex = new int[3];
+                for (int j = 0; j < 3; j++) {
+                    cornerIndex[j] = (node.index[j] + cornerDir[i, j]) << (maxLevel - node.level);
+                }
+                result.Add(GetNodeFromDict(cornerIndex, cornerGraphDictionary));
+                if (GetNodeFromDict(cornerIndex, cornerGraphDictionary) == null) {
+                    Debug.Log(position + " " + cornerIndex[0] + " " + cornerIndex[1] + " " + cornerIndex[2]);
+                }
+            }
+        }
+        return result;
     }
 
     public void TestDisplay() {
@@ -517,18 +586,18 @@ public class OctreeNode
                 for (int yi = 0; yi < 2; yi++)
                     for (int zi = 0; zi < 2; zi++)
                         children[xi, yi, zi].TestDisplay();
-        } else {
+        } else if (blocked) {
             if (disp == null) {
                 disp = GameObject.Instantiate(GameObject.Find("OctreeObj"));
                 disp.transform.position = center;
                 disp.transform.localScale = Vector3.one * size * 0.9f;
             }
             disp.GetComponent<MeshRenderer>().material.color = blocked ? Color.red : new Color(level * 0.05f, level * 0.05f, level * 0.15f);
-            if (!blocked) {
+            /*if (!blocked) {
                 disp.GetComponent<MeshRenderer>().enabled = false;
             } else {
                 disp.GetComponent<MeshRenderer>().enabled = true;
-            }
+            }*/
         }
     }
 

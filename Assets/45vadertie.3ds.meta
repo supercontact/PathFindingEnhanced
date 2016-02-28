@@ -1,0 +1,155 @@
+fileFormatVersion: 2
+guid: 2b13e4c9d89bedd49a3ceaf5623b1ab6
+timeCreated: 1456059618
+licenseType: Free
+ModelImporter:
+  serializedVersion: 19
+  fileIDToRecycleName:
+    100000: //RootNode
+    100002: Box08
+    100004: Bulkhead
+    100006: ChamferBox
+    100008: Circle07
+    100010: EnginGlo
+    100012: Line53
+    100014: Line60
+    100016: NGon03
+    100018: Object03
+    100020: Object04
+    100022: Rectangle0
+    100024: Sphere01
+    100026: Sphere03
+    100028: Sphere04
+    100030: Spot01
+    100032: Spot01.target
+    100034: Spot02
+    100036: Spot02.target
+    100038: Spot03
+    100040: Spot03.target
+    400000: //RootNode
+    400002: Box08
+    400004: Bulkhead
+    400006: ChamferBox
+    400008: Circle07
+    400010: EnginGlo
+    400012: Line53
+    400014: Line60
+    400016: NGon03
+    400018: Object03
+    400020: Object04
+    400022: Rectangle0
+    400024: Sphere01
+    400026: Sphere03
+    400028: Sphere04
+    400030: Spot01
+    400032: Spot01.target
+    400034: Spot02
+    400036: Spot02.target
+    400038: Spot03
+    400040: Spot03.target
+    2300000: Box08
+    2300002: Bulkhead
+    2300004: ChamferBox
+    2300006: Circle07
+    2300008: EnginGlo
+    2300010: Line53
+    2300012: Line60
+    2300014: NGon03
+    2300016: Object03
+    2300018: Object04
+    2300020: Rectangle0
+    2300022: Sphere01
+    2300024: Sphere03
+    2300026: Sphere04
+    3300000: Box08
+    3300002: Bulkhead
+    3300004: ChamferBox
+    3300006: Circle07
+    3300008: EnginGlo
+    3300010: Line53
+    3300012: Line60
+    3300014: NGon03
+    3300016: Object03
+    3300018: Object04
+    3300020: Rectangle0
+    3300022: Sphere01
+    3300024: Sphere03
+    3300026: Sphere04
+    4300000: Sphere01
+    4300002: Sphere03
+    4300004: Sphere04
+    4300006: Object03
+    4300008: Object04
+    4300010: EnginGlo
+    4300012: ChamferBox
+    4300014: Rectangle0
+    4300016: Circle07
+    4300018: NGon03
+    4300020: Bulkhead
+    4300022: Box08
+    4300024: Line53
+    4300026: Line60
+  materials:
+    importMaterials: 1
+    materialName: 0
+    materialSearch: 1
+  animations:
+    legacyGenerateAnimations: 4
+    bakeSimulation: 0
+    resampleRotations: 1
+    optimizeGameObjects: 0
+    motionNodeName: 
+    animationImportErrors: 
+    animationImportWarnings: 
+    animationRetargetingWarnings: 
+    animationDoRetargetingWarnings: 0
+    animationCompression: 1
+    animationRotationError: 0.5
+    animationPositionError: 0.5
+    animationScaleError: 0.5
+    animationWrapMode: 0
+    extraExposedTransformPaths: []
+    clipAnimations: []
+    isReadable: 1
+  meshes:
+    lODScreenPercentages: []
+    globalScale: 0.001
+    meshCompression: 0
+    addColliders: 0
+    importBlendShapes: 1
+    swapUVChannels: 0
+    generateSecondaryUV: 0
+    useFileUnits: 1
+    optimizeMeshForGPU: 1
+    keepQuads: 0
+    weldVertices: 1
+    secondaryUVAngleDistortion: 8
+    secondaryUVAreaDistortion: 15.000001
+    secondaryUVHardAngle: 88
+    secondaryUVPackMargin: 4
+    useFileScale: 1
+  tangentSpace:
+    normalSmoothAngle: 60
+    normalImportMode: 0
+    tangentImportMode: 3
+  importAnimation: 1
+  copyAvatar: 0
+  humanDescription:
+    human: []
+    skeleton: []
+    armTwist: 0.5
+    foreArmTwist: 0.5
+    upperLegTwist: 0.5
+    legTwist: 0.5
+    armStretch: 0.05
+    legStretch: 0.05
+    feetSpacing: 0
+    rootMotionBoneName: 
+    hasTranslationDoF: 0
+  lastHumanDescriptionAvatarSource: {instanceID: 0}
+  animationType: 0
+  humanoidOversampling: 1
+  additionalBone: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
