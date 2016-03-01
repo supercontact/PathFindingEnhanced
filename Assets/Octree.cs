@@ -97,10 +97,15 @@ public class Octree
     public OctreeNode Find(Vector3 p) {
         return Find(PositionToIndex(p));
     }
-    public bool IsBlocked(int[] gridIndex, bool outsideIsBlocked = false) {
+    public bool IsBlocked(int[] gridIndex, bool outsideIsBlocked = false, bool doublePrecision = false) {
         int xi = gridIndex[0];
         int yi = gridIndex[1];
         int zi = gridIndex[2];
+        if (doublePrecision) {
+            xi /= 2;
+            yi /= 2;
+            zi /= 2;
+        }
         int t = 1 << maxLevel;
         if (xi >= t || xi < 0 || yi >= t || yi < 0 || zi >= t || zi < 0) return outsideIsBlocked;
         OctreeNode current = root;
@@ -141,9 +146,13 @@ public class Octree
         root.DivideTriangleUntilLevel(p1, p2, p3, maxLevel, markAsBlocked);
     }
 
-    public bool LineOfSight(Vector3 p1, Vector3 p2) {
+    public bool LineOfSight(Vector3 p1, Vector3 p2, bool outsideIsBlocked = false, bool doublePrecision = false) {
         Vector3 p1g = (p1 - corner) / cellSize;
         Vector3 p2g = (p2 - corner) / cellSize;
+        if (doublePrecision) {
+            p1g *= 2;
+            p2g *= 2;
+        }
         int[,] p = new int[2,3];
         int[] d = new int[3];
         int[] sign = new int[3];
@@ -178,13 +187,13 @@ public class Octree
             if (f[0] >= d[longAxis] && f[1] < d[longAxis]) {
                 f[0] -= d[longAxis];
                 if (d[axis1] != 0) {
-                    if (IsBlocked(pBlock)) return false;
+                    if (IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) return false;
                 } else {
                     bool sight = false;
                     pBlock[axis1] -= 1;
-                    if (!IsBlocked(pBlock)) sight = true;
+                    if (!IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) sight = true;
                     pBlock[axis1] += 1;
-                    if (!IsBlocked(pBlock)) sight = true;
+                    if (!IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) sight = true;
                     if (!sight) return false;
                 }
                 p[0, axis0] += sign[axis0];
@@ -192,13 +201,13 @@ public class Octree
             } else if (f[1] >= d[longAxis] && f[0] < d[longAxis]) {
                 f[1] -= d[longAxis];
                 if (d[axis0] != 0) {
-                    if (IsBlocked(pBlock)) return false;
+                    if (IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) return false;
                 } else {
                     bool sight = false;
                     pBlock[axis0] -= 1;
-                    if (!IsBlocked(pBlock)) sight = true;
+                    if (!IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) sight = true;
                     pBlock[axis0] += 1;
-                    if (!IsBlocked(pBlock)) sight = true;
+                    if (!IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) sight = true;
                     if (!sight) return false;
                 }
                 p[0, axis1] += sign[axis1];
@@ -206,15 +215,15 @@ public class Octree
             } else if (f[0] >= d[longAxis] && f[1] >= d[longAxis]) {
                 f[0] -= d[longAxis];
                 f[1] -= d[longAxis];
-                if (IsBlocked(pBlock)) return false;
+                if (IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) return false;
                 int det = f[0] * d[axis1] - f[1] * d[axis0];
                 if (det > 0) {
                     pBlock[axis0] += sign[axis0];
-                    if (IsBlocked(pBlock)) return false;
+                    if (IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) return false;
                     pBlock[axis1] += sign[axis1];
                 } else if (det < 0) {
                     pBlock[axis1] += sign[axis1];
-                    if (IsBlocked(pBlock)) return false;
+                    if (IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) return false;
                     pBlock[axis0] += sign[axis0];
                 } else {
                     pBlock[axis0] += sign[axis0];
@@ -224,31 +233,31 @@ public class Octree
                 p[0, axis1] += sign[axis1];
             }
 
-            if (f[0] != 0 && f[1] != 0 && IsBlocked(pBlock)) return false;
+            if (f[0] != 0 && f[1] != 0 && IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) return false;
             if (d[axis0] == 0 && d[axis1] != 0) {
                 bool sight = false;
                 pBlock[axis0] -= 1;
-                if (!IsBlocked(pBlock)) sight = true;
+                if (!IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) sight = true;
                 pBlock[axis0] += 1;
-                if (!IsBlocked(pBlock)) sight = true;
+                if (!IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) sight = true;
                 if (!sight) return false;
             } else if (d[axis0] != 0 && d[axis1] == 0) {
                 bool sight = false;
                 pBlock[axis1] -= 1;
-                if (!IsBlocked(pBlock)) sight = true;
+                if (!IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) sight = true;
                 pBlock[axis1] += 1;
-                if (!IsBlocked(pBlock)) sight = true;
+                if (!IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) sight = true;
                 if (!sight) return false;
             } else if (d[axis0] == 0 && d[axis1] == 0) {
                 bool sight = false;
                 pBlock[axis0] -= 1;
-                if (!IsBlocked(pBlock)) sight = true;
+                if (!IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) sight = true;
                 pBlock[axis1] -= 1;
-                if (!IsBlocked(pBlock)) sight = true;
+                if (!IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) sight = true;
                 pBlock[axis0] += 1;
-                if (!IsBlocked(pBlock)) sight = true;
+                if (!IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) sight = true;
                 pBlock[axis1] += 1;
-                if (!IsBlocked(pBlock)) sight = true;
+                if (!IsBlocked(pBlock, outsideIsBlocked, doublePrecision)) sight = true;
                 if (!sight) return false;
             }
             p[0, longAxis] += sign[longAxis];
@@ -263,6 +272,7 @@ public class Octree
     }
 
     public Graph centerGraph;
+    public Dictionary<OctreeNode, Node> centerGraphDictionary;
     public Graph ToCenterGraph() {
         List<OctreeNode> leaves = root.Leaves();
         Dictionary<OctreeNode, Node> dict = new Dictionary<OctreeNode, Node>();
@@ -281,7 +291,7 @@ public class Octree
                 if (q.level == 0) continue;
                 Node n = dict[q];
                 for (int i = 0; i < 6; i++) {
-                    OctreeNode found = Find(new int[] { q.index[0] + dir[i, 0], q.index[1] + dir[i, 1] }, q.level);
+                    OctreeNode found = Find(new int[] { q.index[0] + dir[i, 0], q.index[1] + dir[i, 1], q.index[2] + dir[i, 2] }, q.level);
                     if (found == null || found.blocked) continue;
                     if (found.level < q.level) {
                         Node nFound = dict[found];
@@ -297,7 +307,9 @@ public class Octree
         Graph g = new Graph();
         g.nodes = nodes;
         g.CalculateConnectivity();
+        g.type = Graph.GraphType.CENTER;
         centerGraph = g;
+        centerGraphDictionary = dict;
         return g;
     }
 
@@ -347,6 +359,7 @@ public class Octree
         Graph g = new Graph();
         g.nodes = nodes;
         g.CalculateConnectivity();
+        g.type = Graph.GraphType.CORNER;
         cornerGraph = g;
         cornerGraphDictionary = dict;
         return g;
@@ -366,6 +379,15 @@ public class Octree
     private long GetArcKey(int[] index1, int[] index2) {
         long rowCount = 1 << (maxLevel + 1) + 1;
         return ((index1[0] + index2[0]) * rowCount + index1[1] + index2[1]) * rowCount + index1[2] + index2[2];
+    }
+
+    public List<Node> FindCorrespondingCenterGraphNode(Vector3 position) {
+        List<Node> result = new List<Node>();
+        OctreeNode node = Find(position);
+        if (node != null) {
+            result.Add(centerGraphDictionary[node]);
+        }
+        return result;
     }
 
     public List<Node> FindBoundingCornerGraphNodes(Vector3 position) {

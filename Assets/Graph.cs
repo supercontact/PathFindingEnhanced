@@ -55,6 +55,14 @@ public class Graph {
     public List<Node> nodes;
     public List<Node> temporaryNodes;
 
+    public enum GraphType
+    {
+        CENTER,
+        CORNER,
+        OTHER
+    }
+    public GraphType type = GraphType.OTHER;
+
     public Graph() {
         nodes = new List<Node>();
         temporaryNodes = new List<Node>();
@@ -155,12 +163,23 @@ public class Graph {
         return FindPath(method, source, new List<Vector3>() { destination }, space, h)[0];
     }
     public List<List<Node>> FindPath(PathFindingMethod method, Vector3 source, List<Vector3> destinations, Octree space, H h = null) {
-        List<Node> sourceCorners = space.FindBoundingCornerGraphNodes(source);
-        Node tempSourceNode = AddTemporaryNode(source, sourceCorners);
+        List<Node> sourceNeighbors = null;
+        if (space.Find(source).blocked) return new List<List<Node>>();
+        if (type == GraphType.CENTER) {
+            sourceNeighbors = space.FindCorrespondingCenterGraphNode(source);
+        } else if (type == GraphType.CORNER) {
+            sourceNeighbors = space.FindBoundingCornerGraphNodes(source);
+        }
+        Node tempSourceNode = AddTemporaryNode(source, sourceNeighbors);
         List<Node> tempDestinationNodes = new List<Node>();
         foreach (Vector3 destination in destinations) {
-            List<Node> destinationCorners = space.FindBoundingCornerGraphNodes(destination);
-            tempDestinationNodes.Add(AddTemporaryNode(destination, destinationCorners));
+            List<Node> destinationNeighbors = null;
+            if (type == GraphType.CENTER) {
+                destinationNeighbors = space.Find(destination).blocked ? new List<Node>() : space.FindCorrespondingCenterGraphNode(destination);
+            } else if (type == GraphType.CORNER) {
+                destinationNeighbors = space.Find(destination).blocked ? new List<Node>() : space.FindBoundingCornerGraphNodes(destination);
+            }
+            tempDestinationNodes.Add(AddTemporaryNode(destination, destinationNeighbors));
         }
         List<List<Node>> result = FindPath(method, tempSourceNode, tempDestinationNodes, space, h);
         RemoveTemporaryNodes();
@@ -313,7 +332,7 @@ public class Graph {
                         float g_old = successor.g;
                         // ComputeCost
                         AstarNodeInfo parent = current;
-                        if (parent.parent != null && space.LineOfSight(parent.parent.center, successor.center)) {
+                        if (parent.parent != null && space.LineOfSight(parent.parent.center, successor.center, false, type == GraphType.CENTER)) {
                             parent = parent.parent;
                         }
                         float gNew = parent.g + (successor.center - parent.center).magnitude;
@@ -338,7 +357,7 @@ public class Graph {
             }
             AstarNodeInfo check = current;
             while (check.parent != null) {
-                while (check.parent.parent != null && space.LineOfSight(check.parent.parent.center, check.center)) {
+                while (check.parent.parent != null && space.LineOfSight(check.parent.parent.center, check.center, false, type == GraphType.CENTER)) {
                     check.parent = check.parent.parent;
                 }
                 check = check.parent;
@@ -402,7 +421,7 @@ public class Graph {
                 current.open = false;
                 current.closed = true;
                 // SetVertex
-                if (current.parent != null && !space.LineOfSight(current.parent.center, current.center)) {
+                if (current.parent != null && !space.LineOfSight(current.parent.center, current.center, false, type == GraphType.CENTER)) {
                     AstarNodeInfo realParent = null;
                     float realg = float.MaxValue;
                     foreach (Arc a in current.arcs) {
@@ -454,7 +473,7 @@ public class Graph {
             }
             AstarNodeInfo check = current;
             while (check.parent != null) {
-                while (check.parent.parent != null && space.LineOfSight(check.parent.parent.center, check.center)) {
+                while (check.parent.parent != null && space.LineOfSight(check.parent.parent.center, check.center, false, type == GraphType.CENTER)) {
                     check.parent = check.parent.parent;
                 }
                 check = check.parent;
@@ -462,7 +481,8 @@ public class Graph {
             result.Add(backtrack(current));
             open.Add(ref current.handle, current);
         }
-        //Debug.Log("time: " + (Time.realtimeSinceStartup - t) + " NodeCount: " + nodeCount + " NewNodeCount: " + newNodeCount);
+        //Debug.Log("time: " + (Time.realtimeSinceStartup - t) + " NodeCount: " + nodeCount + " NewNodeCount: " + newNodeCount + " ResultLength: " + (result[0] != null ? result[0].Count + "" : "null"));
+        //Debug.Log("si: " + source.connectIndex + " sn: " + source.arcs.Count + " di: " + destinations[0].connectIndex + " dn: " + destinations[0].arcs.Count);
         return result;
     }
 }

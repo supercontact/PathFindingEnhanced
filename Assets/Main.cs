@@ -11,8 +11,11 @@ public class Main : MonoBehaviour {
     public Octree tree1;
     public Octree tree2;
     public SpaceUnit[] ships;
-    public static float defaultShipSize = 0.1f;
-    public static float defaultWaypointSize = 0.2f; 
+    public static float defaultShipSize = 0f;
+    public static float defaultWaypointSize = 0.2f;
+
+    public Material line1;
+    public Material line2;
 
     Mesh mesh;
     //Geometry geo;
@@ -24,12 +27,12 @@ public class Main : MonoBehaviour {
 	void Start () {
         //mesh = MeshFactory.ReadMeshFromFile("bague", 0.6f, new Vector3(0.15f, 0.15f, 0));
         //obj.GetComponent<MeshFilter>().mesh = mesh;
-        tree1 = new Octree(16, new Vector3(-8, -8, -8), 8);
-        tree2 = new ProgressiveOctree(16, new Vector3(-8, -8, -8), 8);
-        tree1.BuildFromGameObject(obj, defaultShipSize);
+        //tree1 = new Octree(16, new Vector3(-8, -8, -8), 8);
+        tree2 = new ProgressiveOctree(16, new Vector3(-8, -8, -8), 7);
+        //tree1.BuildFromGameObject(obj, defaultShipSize);
         tree2.BuildFromGameObject(obj, defaultShipSize);
-        //tree2.TestDisplay();
-        graph1 = tree1.ToCornerGraph();
+        tree2.TestDisplay();
+        graph1 = tree2.ToCenterGraph();
         graph2 = tree2.ToCornerGraph();
         command = new Commanding(tree2, graph2);
         for (int i = 0; i < ships.Length; i++) {
@@ -44,14 +47,18 @@ public class Main : MonoBehaviour {
 
         Vector3 v1 = new Vector3(Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f));
         List<Vector3> v2 = new List<Vector3>();
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 1; i++) {
             v2.Add(new Vector3(Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f)));
         }
-        List<List<Node>> paths = graph2.FindPath(graph2.ThetaStar, v1, v2, tree2);
+        List<List<Node>> paths1 = graph1.FindPath(graph1.LazyThetaStar, v1, v2, tree2);
+        List<List<Node>> paths2 = graph2.FindPath(graph2.LazyThetaStar, v1, v2, tree2);
 
         ClearDisplay();
-        foreach (List<Node> path in paths) {
-            DrawPath(path);
+        foreach (List<Node> path in paths1) {
+            DrawPath(path, line1);
+        }
+        foreach (List<Node> path in paths2) {
+            DrawPath(path, line2);
         }
     }
 
@@ -171,7 +178,7 @@ public class Main : MonoBehaviour {
     }
 
     List<GameObject> display = new List<GameObject>();
-    void DrawPath(List<Node> path) {
+    void DrawPath(List<Node> path, Material mat) {
         if (path == null) return;
         Vector3[] pathV = new Vector3[path.Count];
         int i = 0;
@@ -188,6 +195,7 @@ public class Main : MonoBehaviour {
         GameObject lineObject = new GameObject();
         display.Add(lineObject);
         LineRenderer lr = lineObject.AddComponent<LineRenderer>();
+        lr.material = mat;
         lr.SetVertexCount(path.Count);
         lr.SetPositions(pathV);
         lr.SetWidth(0.01f, 0.01f);
