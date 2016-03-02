@@ -529,6 +529,19 @@ public class OctreeNode
         return true;
     }
 
+    public bool IntersectSphere(Vector3 sphereCenter, float radius)
+    {
+        Vector3 c1 = corners(0);
+        Vector3 c2 = corners(7);
+        float r2 = radius * radius;
+        for (int i = 0; i < 3; i++)
+        {
+            if (sphereCenter[i] < c1[i]) r2 -= (sphereCenter[i] - c1[i]) * (sphereCenter[i] - c1[i]);
+            else if (sphereCenter[i] > c2[i]) r2 -= (sphereCenter[i] - c2[i]) * (sphereCenter[i] - c2[i]);
+        }
+        return r2 > 0;
+    }
+
     public void DivideUntilLevel(Vector3 p, int maxLevel, bool markAsBlocked = false) {
         if (Contains(p)) {
             containsBlocked = containsBlocked || markAsBlocked;
@@ -555,6 +568,25 @@ public class OctreeNode
                         for (int zi = 0; zi < 2; zi++)
                             children[xi, yi, zi].DivideTriangleUntilLevel(p1, p2, p3, maxLevel, markAsBlocked);
             } else {
+                blocked = blocked || markAsBlocked;
+            }
+        }
+    }
+
+    public void DivideSphereUntilLevel(Vector3 sphereCenter, float radius, int maxLevel, bool markAsBlocked = false)
+    {
+        if (IntersectSphere(sphereCenter, radius))
+        {
+            containsBlocked = containsBlocked || markAsBlocked;
+            if (level < maxLevel)
+            {
+                CreateChildren();
+                for (int xi = 0; xi < 2; xi++)
+                    for (int yi = 0; yi < 2; yi++)
+                        for (int zi = 0; zi < 2; zi++)
+                            children[xi, yi, zi].DivideSphereUntilLevel(sphereCenter, radius, maxLevel, markAsBlocked);
+            }
+            else {
                 blocked = blocked || markAsBlocked;
             }
         }
