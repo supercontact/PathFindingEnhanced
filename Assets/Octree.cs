@@ -384,7 +384,7 @@ public class Octree
     public List<Node> FindCorrespondingCenterGraphNode(Vector3 position) {
         List<Node> result = new List<Node>();
         OctreeNode node = Find(position);
-        if (node != null) {
+        if (node != null && centerGraphDictionary.ContainsKey(node)) {
             result.Add(centerGraphDictionary[node]);
         }
         return result;
