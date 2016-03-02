@@ -22,6 +22,7 @@ public class SpaceUnit : MonoBehaviour {
 
     // Update is called once per frame
     void Update() {
+        position = transform.position;
         Node next = null;
         if (wayPoints != null && wayPoints.Count > 0) {
             next = wayPoints.Peek(); 
@@ -42,6 +43,9 @@ public class SpaceUnit : MonoBehaviour {
         if (velocity.sqrMagnitude > 0.0001f) {
             transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.LookRotation(velocity), Time.deltaTime * 5);
         }
+        Rigidbody body = GetComponent<Rigidbody>();
+        body.velocity = Vector3.zero;
+        body.angularVelocity = Vector3.zero;
     }
 
     public void SetWayPoints(List<Node> wp, float range) {

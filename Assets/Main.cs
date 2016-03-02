@@ -11,7 +11,7 @@ public class Main : MonoBehaviour {
     public Octree tree1;
     public Octree tree2;
     public SpaceUnit[] ships;
-    public static float defaultShipSize = 0f;
+    public static float defaultShipSize = 0.1f;
     public static float defaultWaypointSize = 0.2f;
 
     public Material line1;

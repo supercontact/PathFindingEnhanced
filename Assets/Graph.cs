@@ -106,10 +106,15 @@ public class Graph {
         foreach (Node neighbor in neighbors) {
             //GameObject test = GameObject.Instantiate(GameObject.Find("Sphere"));
             //test.transform.position = neighbor.center;
+            float minDist2 = float.MaxValue;
             if (neighbor != null) {
                 newNode.arcs.Add(new Arc(newNode, neighbor));
                 neighbor.arcs.Add(new Arc(neighbor, newNode));
-                newNode.connectIndex = neighbor.connectIndex;
+                float d2 = (neighbor.center - newNode.center).sqrMagnitude;
+                if (d2 < minDist2) {
+                    newNode.connectIndex = neighbor.connectIndex;
+                    minDist2 = d2;
+                }
             }
         }
         return newNode;
@@ -164,7 +169,7 @@ public class Graph {
     }
     public List<List<Node>> FindPath(PathFindingMethod method, Vector3 source, List<Vector3> destinations, Octree space, H h = null) {
         List<Node> sourceNeighbors = null;
-        if (space.Find(source).blocked) return new List<List<Node>>();
+        //if (space.Find(source).blocked) return new List<List<Node>>();
         if (type == GraphType.CENTER) {
             sourceNeighbors = space.FindCorrespondingCenterGraphNode(source);
         } else if (type == GraphType.CORNER) {
@@ -175,9 +180,9 @@ public class Graph {
         foreach (Vector3 destination in destinations) {
             List<Node> destinationNeighbors = null;
             if (type == GraphType.CENTER) {
-                destinationNeighbors = space.Find(destination).blocked ? new List<Node>() : space.FindCorrespondingCenterGraphNode(destination);
+                destinationNeighbors = space.FindCorrespondingCenterGraphNode(destination);
             } else if (type == GraphType.CORNER) {
-                destinationNeighbors = space.Find(destination).blocked ? new List<Node>() : space.FindBoundingCornerGraphNodes(destination);
+                destinationNeighbors = space.FindBoundingCornerGraphNodes(destination);
             }
             tempDestinationNodes.Add(AddTemporaryNode(destination, destinationNeighbors));
         }
