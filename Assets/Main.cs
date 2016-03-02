@@ -28,14 +28,16 @@ public class Main : MonoBehaviour {
         //mesh = MeshFactory.ReadMeshFromFile("bague", 0.6f, new Vector3(0.15f, 0.15f, 0));
         //obj.GetComponent<MeshFilter>().mesh = mesh;
         //tree1 = new Octree(16, new Vector3(-8, -8, -8), 8);
-        tree2 = new ProgressiveOctree(16, new Vector3(-8, -8, -8), 7);
+        tree2 = new ProgressiveOctree(16, new Vector3(-8, -8, -8), 8);
         //tree1.BuildFromGameObject(obj, defaultShipSize);
-        tree2.BuildFromGameObject(obj, defaultShipSize);
-        tree2.TestDisplay();
+        tree2.BuildFromGameObject(obj, Mathf.Max(defaultShipSize - tree2.cellSize * Mathf.Sqrt(3) / 2, 0));
+        //tree2.TestDisplay();
         graph1 = tree2.ToCenterGraph();
         graph2 = tree2.ToCornerGraph();
         command = new Commanding(tree2, graph2);
         for (int i = 0; i < ships.Length; i++) {
+            ships[i].space = tree2;
+            ships[i].spaceGraph = graph2;
             command.activeUnits.Add(ships[i]);
         }
     }
