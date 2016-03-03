@@ -42,8 +42,8 @@ public class ObserveCamera : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
 		if (Time.unscaledDeltaTime != 0f) {
-            //if (clicking) {
-            if (Input.GetMouseButtonDown(0)) {
+            if (clicking) {
+            //if (Input.GetMouseButtonDown(0)) {
                 clicking = false;
 				prevMousePos = Input.mousePosition;
 				mouseMode = 0;

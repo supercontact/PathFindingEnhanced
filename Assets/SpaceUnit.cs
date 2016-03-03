@@ -6,68 +6,118 @@ public class SpaceUnit : MonoBehaviour {
 
     public Octree space;
     public Graph spaceGraph;
-    public Queue<Node> wayPoints;
-    public float wayPointRange;
-    public float maxVelocity = 1f;
-    float acceleration = 3f;
-    public float radius = 0.1f;
-    float repulsiveRadius = 0.1f;
-    float repulsiveCoeff = 5f;
-    float repulsivePow = 1.5f;
 
+    public int team = 1;
+
+    public float radius = 0.1f;
+
+    public bool movable = true;
+    public float maxVelocity = 1f;
+    public float acceleration = 3f;
+    public float defaultWayPointRange = 0.2f;
+    public float pathFindingRecheckInterval = 1f;
+    public float repulsiveRadius = 0.1f;
+    public float repulsiveCoeff = 5f;
+    public float repulsivePow = 1.5f;
+
+    public bool attackable = true;
+    public float enemyCheckRange = 4.5f;
+    public float enemyCheckInterval = 0.5f;
+    public float startChaseRange = 2.5f;
+    public float chaseRange = 1.5f;
+
+    public List<Weapon> weapons;
+
+
+
+    public enum UnitState
+    {
+        IDLE,
+        MOVING,
+        ATTACKING
+    }
+    public UnitState state = UnitState.IDLE;
 
     public Vector3 velocity;
     public Vector3 position;
     public bool active = true;
 
-    public Node last;
+    public Queue<Vector3> wayPoints;
+    public float wayPointRange;
+    public Vector3 lastWayPoint;
 
-    private float recheckTimer = 1f;
-    public float recheckInterval = 1f;
+    public SpaceUnit target;
 
-	// Use this for initialization
-	void Start () {
+    private float enemyCheckTimer = 0.5f;
+    private float pathFindingRecheckTimer = 1f;
+
+    // Use this for initialization
+    void Start () {
         position = transform.position;
 	}
 
     // Update is called once per frame
     void Update() {
+        if (attackable) PassiveAttackUpdate();
+        if (movable) MovementUpdate();
+    }
+
+    private SpaceUnit EnemyCheck() {
+        SpaceUnit result = null;
+        Collider[] cols = Physics.OverlapSphere(position, enemyCheckRange);
+        foreach (Collider col in cols) {
+            SpaceUnit unit = col.GetComponent<SpaceUnit>();
+            if (unit != null && unit.team != team && space.LineOfSight(position, unit.position, false, true) &&
+                (result == null || (result.position - position).magnitude > (unit.position - position).magnitude)) {
+                result = unit;
+            }
+        }
+        return result;
+    } 
+
+    private void MovementUpdate() {
         position = transform.position;
 
         // Find next waypoint
-        Node next = null;
+        Vector3 next = Vector3.zero;
         Vector3 nextSpot = Vector3.zero;
         if (wayPoints != null && wayPoints.Count > 0) {
             next = wayPoints.Peek();
-            nextSpot = next.center + ((last == null || wayPoints.Count == 1) ? Vector3.zero : (next.center - last.center).normalized * wayPointRange);
+            nextSpot = next + ((lastWayPoint == Vector3.zero || wayPoints.Count == 1) ? Vector3.zero : (next - lastWayPoint).normalized * wayPointRange);
 
-            while (next != null && (nextSpot - position).sqrMagnitude < wayPointRange * wayPointRange) {
-                last = wayPoints.Dequeue();
-                next = wayPoints.Count > 0 ? wayPoints.Peek() : null;
-                if (next != null) {
-                    nextSpot = next.center + ((last == null || wayPoints.Count == 1) ? Vector3.zero : (next.center - last.center).normalized * wayPointRange);
+            while (wayPoints.Count > 0 && (nextSpot - position).sqrMagnitude < wayPointRange * wayPointRange) {
+                lastWayPoint = wayPoints.Dequeue();
+                if (wayPoints.Count > 0) {
+                    next = wayPoints.Peek();
+                    nextSpot = next + ((lastWayPoint == Vector3.zero || wayPoints.Count == 1) ? Vector3.zero : (next - lastWayPoint).normalized * wayPointRange);
+                } else if (state == UnitState.MOVING) {
+                    state = UnitState.IDLE;
                 }
             }
         }
-        if (wayPoints == null || wayPoints.Count == 0) last = null;
+        if (wayPoints == null || wayPoints.Count == 0) lastWayPoint = Vector3.zero;
 
         // Check line of sight to the next way point
-        recheckTimer -= Time.deltaTime;
-        if (recheckTimer <= 0) {
-            if (next != null && !space.LineOfSight(position, next.center, false, true)) {
-                List<Node> tempPath = spaceGraph.FindPath(spaceGraph.LazyThetaStar, position, next.center, space);
+        pathFindingRecheckTimer -= Time.deltaTime;
+        if (pathFindingRecheckTimer <= 0) {
+            if (wayPoints != null && wayPoints.Count > 0 && !space.LineOfSight(position, next, false, true)) {
+                List<Node> tempPath = spaceGraph.FindPath(spaceGraph.LazyThetaStar, position, next, space);
                 if (tempPath != null) {
-                    Queue<Node> newPath = new Queue<Node>(tempPath);
+                    Queue<Vector3> newPath = new Queue<Vector3>();
+                    foreach (Node node in tempPath) {
+                        newPath.Enqueue(node.center);
+                    }
                     wayPoints.Dequeue();
                     while (wayPoints.Count > 0) newPath.Enqueue(wayPoints.Dequeue());
                     wayPoints = newPath;
                 }
             }
-            recheckTimer += recheckInterval;
+            pathFindingRecheckTimer += pathFindingRecheckInterval;
         }
 
+        // Accelerate to target velocity
         Vector3 targetVelocity = Vector3.zero;
-        if (next != null) {
+        if (wayPoints != null && wayPoints.Count > 0) {
             targetVelocity = (nextSpot - position).normalized * maxVelocity;
         }
         if ((targetVelocity - velocity).sqrMagnitude < U.Sq(acceleration * Time.deltaTime)) {
@@ -76,6 +126,7 @@ public class SpaceUnit : MonoBehaviour {
             velocity += (targetVelocity - velocity).normalized * acceleration * Time.deltaTime;
         }
 
+        // Repulsive force from SpaceUnits
         Collider[] touch = Physics.OverlapSphere(position, radius + repulsiveRadius);
         foreach (Collider col in touch) {
             SpaceUnit ship = col.GetComponent<SpaceUnit>();
@@ -86,6 +137,8 @@ public class SpaceUnit : MonoBehaviour {
                 velocity += acc * Time.deltaTime;
             }
         }
+
+        // Repulsive force from walls
         for (int i = 0; i < 16; i++) {
             Ray ray = new Ray(position, Random.onUnitSphere);
             RaycastHit res;
@@ -97,20 +150,53 @@ public class SpaceUnit : MonoBehaviour {
         }
         position += velocity * Time.deltaTime;
 
+        // Update position
         transform.position = position;
         if (targetVelocity.sqrMagnitude > 0.0001f) {
             //transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.LookRotation(targetVelocity), Time.deltaTime * 5);
             transform.rotation = Quaternion.Lerp(Quaternion.identity, Quaternion.FromToRotation(transform.forward, targetVelocity), Time.deltaTime * 5) * transform.rotation;
         }
-
         Rigidbody body = GetComponent<Rigidbody>();
         body.velocity = Vector3.zero;
         body.angularVelocity = Vector3.zero;
     }
 
-    public void SetWayPoints(List<Node> wp, float range) {
-        if (wp == null) return;
-        wayPoints = new Queue<Node>(wp);
+    private void PassiveAttackUpdate() {
+        if (target != null && ((target.position - position).magnitude > enemyCheckRange || false)) {
+            target = null;
+        }
+
+        if (enemyCheckTimer > 0) {
+            enemyCheckTimer -= Time.deltaTime;
+        } else if (state == UnitState.IDLE || state == UnitState.MOVING) {
+            if (target == null) {
+                SpaceUnit enemy = EnemyCheck();
+                if (enemy != null) {
+                    target = enemy;
+                    foreach (Weapon weapon in weapons) {
+                        weapon.Attack(target);
+                    }
+                }
+            }
+
+            if (target != null && state == UnitState.IDLE && (target.position - position).magnitude > startChaseRange) {
+                wayPoints = new Queue<Vector3>();
+                Vector3 chasePos = target.position + (position - target.position).normalized * chaseRange;
+                wayPoints.Enqueue(chasePos);
+                wayPointRange = defaultWayPointRange;
+            }
+            enemyCheckTimer += enemyCheckInterval;
+        }
+    }
+
+
+    public void MoveOrder(List<Node> wp, float range) {
+        if (wp == null || !movable) return;
+        wayPoints = new Queue<Vector3>();
+        foreach (Node node in wp) {
+            wayPoints.Enqueue(node.center);
+        }
         wayPointRange = range;
+        state = UnitState.MOVING;
     }
 }

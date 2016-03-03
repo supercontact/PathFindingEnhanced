@@ -8,8 +8,8 @@ public class Main : MonoBehaviour {
     public GameObject obj;
     public GameObject mark;
     //public Quadtree tree;
-    public Octree tree1;
-    public Octree tree2;
+    //public Octree tree1;
+    //public Octree tree2;
     public SpaceUnit[] ships;
     public static float defaultShipSize = 0.1f;
     public static float defaultWaypointSize = 0.2f;
@@ -19,41 +19,83 @@ public class Main : MonoBehaviour {
 
     Mesh mesh;
     //Geometry geo;
-    Graph graph1;
-    Graph graph2;
+    //Graph graph1;
+    //Graph graph2;
+
+    World[] worlds;
+
     Commanding command;
 
 	// Use this for initialization
 	void Start () {
+        worlds = new World[4];
+        float ext = Mathf.Max(defaultShipSize - 16f / (1 << 8) * Mathf.Sqrt(3) / 2, 0);
+        worlds[0] = new World(obj, 16, Vector3.zero, 8, ext, false, false);
+        worlds[1] = new World(worlds[0].space, true);
+        worlds[2] = new World(obj, 16, Vector3.zero, 8, ext, true, false);
+        worlds[3] = new World(worlds[2].space, true);
+        //worlds[3].space.DisplayVoxels();
+
         //mesh = MeshFactory.ReadMeshFromFile("bague", 0.6f, new Vector3(0.15f, 0.15f, 0));
         //obj.GetComponent<MeshFilter>().mesh = mesh;
         //tree1 = new Octree(16, new Vector3(-8, -8, -8), 8);
-        tree2 = new ProgressiveOctree(16, new Vector3(-8, -8, -8), 8);
+        //tree2 = new ProgressiveOctree(16, new Vector3(-8, -8, -8), 8);
         //tree1.BuildFromGameObject(obj, defaultShipSize);
-        tree2.BuildFromGameObject(obj, Mathf.Max(defaultShipSize - tree2.cellSize * Mathf.Sqrt(3) / 2, 0));
+        //tree2.BuildFromGameObject(obj, Mathf.Max(defaultShipSize - tree2.cellSize * Mathf.Sqrt(3) / 2, 0));
         //tree2.TestDisplay();
-        graph1 = tree2.ToCenterGraph();
-        graph2 = tree2.ToCornerGraph();
-        command = new Commanding(tree2, graph2);
+        //graph1 = tree2.ToCenterGraph();
+        //graph2 = tree2.ToCornerGraph();
+        command = new Commanding(worlds[3].space, worlds[3].spaceGraph);
         for (int i = 0; i < ships.Length; i++) {
-            ships[i].space = tree2;
-            ships[i].spaceGraph = graph2;
+            ships[i].space = worlds[3].space;
+            ships[i].spaceGraph = worlds[3].spaceGraph;
             command.activeUnits.Add(ships[i]);
         }
     }
 
-    void Test () {
+    bool displayProgressive = true;
+    bool displaying = false;
+    int currentDisplayLevel = -1;
+    public void DisplayVoxels(int maxLevel) {
+        Octree tree = displayProgressive ? worlds[3].space : worlds[1].space;
+        if (displaying) tree.ClearDisplay();
+        tree.DisplayVoxels(maxLevel);
+        displaying = true;
+        currentDisplayLevel = maxLevel;
+    }
+    public void ClearVoxels() {
+        if (displaying) {
+            Octree tree = displayProgressive ? worlds[3].space : worlds[1].space;
+            tree.ClearDisplay();
+            displaying = false;
+        }
+    }
+    public void DisplaySwitchTree(bool on) {
+        if (on != displayProgressive) {
+            if (displaying) {
+                ClearVoxels();
+                displayProgressive = !displayProgressive;
+                DisplayVoxels(currentDisplayLevel);
+            } else {
+                displayProgressive = !displayProgressive;
+            }
+        }
+    }
+
+    int RandomTestNumber = 1;
+    bool[,] RandomTestWorldMethod = { { false, false, false }, { false, false, true }, { false, false, false }, { false, false, true } };
+    void RandomTest () {
         /*int i1 = Random.Range(0, graph.nodes.Count);
         int[] i2 = { Random.Range(0, graph.nodes.Count) , Random.Range(0, graph.nodes.Count) , Random.Range(0, graph.nodes.Count) };
         List<List<Node>> paths = graph.FindPath(graph.LazyThetaStar, graph.nodes[i1], new List<Node>() { graph.nodes[i2[0]], graph.nodes[i2[1]], graph.nodes[i2[2]] }, tree2);*/
 
         Vector3 v1 = new Vector3(Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f));
         List<Vector3> v2 = new List<Vector3>();
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < RandomTestNumber; i++) {
             v2.Add(new Vector3(Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f)));
         }
-        List<List<Node>> paths1 = graph1.FindPath(graph1.LazyThetaStar, v1, v2, tree2);
-        List<List<Node>> paths2 = graph2.FindPath(graph2.LazyThetaStar, v1, v2, tree2);
+        List<List<Node>> paths1 = worlds[2].spaceGraph.FindPath(worlds[2].spaceGraph.LazyThetaStar, v1, v2, worlds[2].space);
+        List<List<Node>> paths2 = worlds[3].spaceGraph.FindPath(worlds[3].spaceGraph.LazyThetaStar, v1, v2, worlds[3].space);
 
         ClearDisplay();
         foreach (List<Node> path in paths1) {
@@ -64,7 +106,7 @@ public class Main : MonoBehaviour {
         }
     }
 
-    int testTimes = 0;
+    /*int testTimes = 0;
     float[] totalTime = new float[7];
     float[] totalLength = new float[7];
     void TestScene1(int times = 1) {
@@ -162,11 +204,7 @@ public class Main : MonoBehaviour {
         for (int i = 0; i < 6; i++) {
             Debug.Log(i + ": Average Time " + (totalTime[i] / testTimes) + "s Average Length " + (totalLength[i] / testTimes) + " times: " + testTimes);
         }
-    }
-
-    void ResetData() {
-
-    }
+    }*/
 
     float PathLength(List<Node> path) {
         if (path == null) return 0;
@@ -218,8 +256,17 @@ public class Main : MonoBehaviour {
     // Update is called once per frame
     void Update() {
         if (Input.GetKeyDown(KeyCode.Space)) {
-            Test();
+            RandomTest();
             //TestScene3(100);
+        }
+
+        for (int i = 0; i < 8; i++) {
+            if (Input.GetKeyDown(KeyCode.Alpha1 + i)) {
+                DisplayVoxels(i + 1);
+            }
+        }
+        if (Input.GetKeyDown(KeyCode.BackQuote)) {
+            ClearVoxels();
         }
 
         if (Input.GetMouseButtonDown(0)) {
@@ -247,7 +294,7 @@ public class Main : MonoBehaviour {
             Vector3 mouseVec = Input.mousePosition - cam.WorldToScreenPoint(mouseClickOrigin);
             mouseVec.z = 0;
             mouseClickHeight = Vector3.Dot(mouseVec, dir) / 100;
-            mouseClickHeight = Mathf.Max(defaultShipSize + tree2.cellSize, mouseClickHeight);
+            mouseClickHeight = Mathf.Max(defaultShipSize + worlds[3].space.cellSize, mouseClickHeight);
             mouseClickMark.transform.position = mouseClickOrigin + mouseClickNormal * mouseClickHeight;
             mouseClickMark.GetComponent<LineRenderer>().SetVertexCount(2);
             mouseClickMark.GetComponent<LineRenderer>().SetPosition(0, mouseClickOrigin);

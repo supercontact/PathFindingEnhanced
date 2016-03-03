@@ -22,7 +22,7 @@ public class Commanding {
         if (pathFindingDest.Count > 0) {
             List<List<Node>> allWayPoints = spaceGraph.FindPath(spaceGraph.LazyThetaStar, target, pathFindingDest, space);
             for (int i = 0; i < activeUnits.Count; i++) {
-                activeUnits[i].SetWayPoints(U.InverseList(allWayPoints[i]), Main.defaultWaypointSize * Mathf.Pow(activeUnits.Count, 0.333f)); // * Mathf.Pow(activeUnits.Count, 0.333f)
+                activeUnits[i].MoveOrder(U.InverseList(allWayPoints[i]), Main.defaultWaypointSize * Mathf.Pow(activeUnits.Count, 0.333f)); // * Mathf.Pow(activeUnits.Count, 0.333f)
             }
         }
     }

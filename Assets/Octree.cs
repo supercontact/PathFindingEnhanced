@@ -408,8 +408,11 @@ public class Octree
         return result;
     }
 
-    public void TestDisplay() {
-        root.TestDisplay();
+    public void DisplayVoxels(int maxLevel = -1, bool blockedOnly = true) {
+        root.DisplayVoxels(maxLevel, blockedOnly);
+    }
+    public void ClearDisplay() {
+        root.ClearDisplay();
     }
 }
 
@@ -630,8 +633,8 @@ public class OctreeNode
 
 
     GameObject disp;
-    public void TestDisplay() {
-        if (children != null) {
+    public void DisplayVoxels(int maxLevel = -1, bool blockedOnly = true) {
+        if (children != null && (maxLevel == -1 || level < maxLevel)) {
             if (disp != null) {
                 GameObject.Destroy(disp);
                 disp = null;
@@ -639,20 +642,26 @@ public class OctreeNode
             for (int xi = 0; xi < 2; xi++)
                 for (int yi = 0; yi < 2; yi++)
                     for (int zi = 0; zi < 2; zi++)
-                        children[xi, yi, zi].TestDisplay();
-        } else if (blocked) {
+                        children[xi, yi, zi].DisplayVoxels(maxLevel, blockedOnly);
+        } else if (containsBlocked || !blockedOnly) {
             if (disp == null) {
                 disp = GameObject.Instantiate(GameObject.Find("OctreeObj"));
                 disp.transform.position = center;
                 disp.transform.localScale = Vector3.one * size * 0.9f;
             }
-            disp.GetComponent<MeshRenderer>().material.color = blocked ? Color.red : new Color(level * 0.05f, level * 0.05f, level * 0.15f);
-            /*if (!blocked) {
-                disp.GetComponent<MeshRenderer>().enabled = false;
-            } else {
-                disp.GetComponent<MeshRenderer>().enabled = true;
-            }*/
+            disp.GetComponent<MeshRenderer>().material.color = containsBlocked ? Color.red : new Color(level * 0.05f, level * 0.05f, level * 0.15f);
         }
     }
-
+    public void ClearDisplay() {
+        if (disp != null) {
+            GameObject.Destroy(disp);
+            disp = null;
+        }
+        if (children != null) {
+            for (int xi = 0; xi < 2; xi++)
+                for (int yi = 0; yi < 2; yi++)
+                    for (int zi = 0; zi < 2; zi++)
+                        children[xi, yi, zi].ClearDisplay();
+        }
+    }
 }
