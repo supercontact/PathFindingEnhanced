@@ -104,7 +104,19 @@ public class SpaceUnit : MonoBehaviour {
         // Check line of sight to the next way point
         pathFindingRecheckTimer -= Time.deltaTime;
         if (pathFindingRecheckTimer <= 0) {
-            if (wayPoints != null && wayPoints.Count > 0 && !space.LineOfSight(position, next, false, true)) {
+            bool jumped = false;
+            if (wayPoints != null && wayPoints.Count > 1) {
+                Queue<Vector3>.Enumerator e = wayPoints.GetEnumerator();
+                e.MoveNext(); e.MoveNext();
+                Vector3 nextnext = e.Current;
+                if (space.LineOfSight(position, nextnext, false, true)) {
+                    lastWayPoint = wayPoints.Dequeue();
+                    next = wayPoints.Peek();
+                    nextSpot = next + (wayPoints.Count == 1 ? Vector3.zero : (next - lastWayPoint).normalized * wayPointRange);
+                    jumped = true;
+                }
+            }
+            if (!jumped && wayPoints != null && wayPoints.Count > 0 && !space.LineOfSight(position, next, false, true)) {
                 List<Node> tempPath = spaceGraph.FindPath(spaceGraph.LazyThetaStar, position, next, space);
                 if (tempPath != null) {
                     Queue<Vector3> newPath = new Queue<Vector3>();

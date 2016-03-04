@@ -1,44 +1,56 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
 
 public class Main : MonoBehaviour {
 
     public Camera cam;
-    public GameObject obj;
+    public GameObject[] scenes;
     public GameObject mark;
     public GameObject ship;
     public static float defaultShipSize = 0.1f;
     public static float defaultWaypointSize = 0.2f;
 
-    Mesh mesh;
+    public float[,] randomRangeSource = { { -2, 2, -2, 2, -2, 2 }, { -2, 0, -2, 0, -2, -0.2f }, { -1, 1, -1, 1, -2, -1.1f } };
+    public float[,] randomRangeDestination = { { -2, 2, -2, 2, -2, 2 }, { -2, 0, -2, 0, 0.2f, 2 }, { -1, 1, -1, 1, 1.1f, 2 } };
 
+    int sceneIndex = -1;
     World[] worlds;
     List<SpaceUnit> ships = new List<SpaceUnit>();
 
     Commanding command;
 
-	// Use this for initialization
-	void Start () {
+    // Use this for initialization
+    void Start() {
 
         //mesh = MeshFactory.ReadMeshFromFile("bague", 0.6f, new Vector3(0.15f, 0.15f, 0));
         //obj.GetComponent<MeshFilter>().mesh = mesh;
 
-        worlds = new World[5];
-        worlds[0] = new World(obj, 16, Vector3.zero, 8, 0, false, false);
-        worlds[1] = new World(worlds[0].space, true);
-        worlds[2] = new World(obj, 16, Vector3.zero, 8, 0, true, false);
-        worlds[3] = new World(worlds[2].space, true);
-        float ext = Mathf.Max(defaultShipSize - 16f / (1 << 8) * Mathf.Sqrt(3) / 2, 0);
-        worlds[4] = new World(obj, 16, Vector3.zero, 8, ext, true, true);
-
-        command = new Commanding(worlds[4]);
-        /*for (int i = 0; i < ships.Length; i++) {
-            ships[i].space = worlds[4].space;
-            ships[i].spaceGraph = worlds[4].spaceGraph;
-            command.activeUnits.Add(ships[i]);
-        }*/
+        LoadScene(0);
     }
+
+    public void LoadScene(int index) {
+        if (sceneIndex != index) {
+            ClearVoxels();
+            ClearDisplay();
+            while (ships.Count > 0) RemoveShip();
+
+            if (sceneIndex >= 0) scenes[sceneIndex].SetActive(false);
+            scenes[index].SetActive(true);
+            worlds = new World[5];
+            worlds[0] = new World(scenes[index], 16, Vector3.zero, 8, 0, false, false);
+            worlds[1] = new World(worlds[0].space, true);
+            worlds[2] = new World(scenes[index], 16, Vector3.zero, 8, 0, true, false);
+            worlds[3] = new World(worlds[2].space, true);
+            float ext = Mathf.Max(defaultShipSize - 16f / (1 << 8) * Mathf.Sqrt(3) / 2, 0);
+            worlds[4] = new World(scenes[index], 16, Vector3.zero, 8, ext, true, true);
+
+            command = new Commanding(worlds[4]);
+            sceneIndex = index;
+        }
+    }
+
 
     bool displayExtended = false;
     bool displaying = false;
@@ -72,20 +84,43 @@ public class Main : MonoBehaviour {
     int RandomTestNumber = 1;
     bool[,] RandomTestWorldMethod = { { false, false, false }, { false, false, false }, { false, false, true }, { false, false, true } };
     public Material[] lines;
-    Vector3 currentV1 = Vector3.zero;
-    List<Vector3> currentV2 = null;
-    public void RandomTest () {
+    public Text[] pathInfo;
+    List<Vector3> currentV1 = null;
+    List<List<Vector3>> currentV2 = null;
+    public void RandomTest (int n) {
         /*int i1 = Random.Range(0, graph.nodes.Count);
         int[] i2 = { Random.Range(0, graph.nodes.Count) , Random.Range(0, graph.nodes.Count) , Random.Range(0, graph.nodes.Count) };
         List<List<Node>> paths = graph.FindPath(graph.LazyThetaStar, graph.nodes[i1], new List<Node>() { graph.nodes[i2[0]], graph.nodes[i2[1]], graph.nodes[i2[2]] }, tree2);*/
 
-        Vector3 v1 = new Vector3(Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f));
-        List<Vector3> v2 = new List<Vector3>();
-        for (int i = 0; i < RandomTestNumber; i++) {
-            v2.Add(new Vector3(Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f)));
+        currentV1 = new List<Vector3>();
+        currentV2 = new List<List<Vector3>>();
+
+        for (int t = 0; t < n; t++) {
+            Vector3 v1;
+            do {
+                v1 = new Vector3(
+                    Random.Range(randomRangeSource[sceneIndex, 0], randomRangeSource[sceneIndex, 1]),
+                    Random.Range(randomRangeSource[sceneIndex, 2], randomRangeSource[sceneIndex, 3]),
+                    Random.Range(randomRangeSource[sceneIndex, 4], randomRangeSource[sceneIndex, 5]));
+            } while (worlds[0].space.IsBlocked(worlds[0].space.PositionToIndex(v1)));
+            List<Vector3> v2 = new List<Vector3>();
+
+            for (int i = 0; i < RandomTestNumber; i++) {
+                Vector3 v2t;
+                do {
+                    v2t = new Vector3(
+                        Random.Range(randomRangeDestination[sceneIndex, 0], randomRangeDestination[sceneIndex, 1]),
+                        Random.Range(randomRangeDestination[sceneIndex, 2], randomRangeDestination[sceneIndex, 3]),
+                        Random.Range(randomRangeDestination[sceneIndex, 4], randomRangeDestination[sceneIndex, 5]));
+                } while (worlds[0].space.IsBlocked(worlds[0].space.PositionToIndex(v2t)));
+
+                v2.Add(v2t);
+            }
+
+            currentV1.Add(v1);
+            currentV2.Add(v2);
         }
-        currentV1 = v1;
-        currentV2 = v2;
+
         TestPathFinding();
     }
 
@@ -98,10 +133,24 @@ public class Main : MonoBehaviour {
                     if (m == 0) method = worlds[w].spaceGraph.AStar;
                     else if (m == 1) method = worlds[w].spaceGraph.ThetaStar;
                     else method = worlds[w].spaceGraph.LazyThetaStar;
-                    List<List<Node>> paths = worlds[w].spaceGraph.FindPath(method, currentV1, currentV2, worlds[w].space);
-                    foreach (List<Node> path in paths) {
-                        DrawPath(path, lines[w * 3 + m]);
+                    float totalLength = 0;
+                    float startTime = Time.realtimeSinceStartup;
+                    for (int i = 0; i < currentV1.Count; i++) { 
+                        List<List<Node>> paths = worlds[w].spaceGraph.FindPath(method, currentV1[i], currentV2[i], worlds[w].space);
+                        foreach (List<Node> path in paths) {
+                            if (currentV1.Count == 1) DrawPath(path, lines[w * 3 + m]);
+                            totalLength += PathLength(path);
+                        }
                     }
+                    pathInfo[w * 3 + m].gameObject.SetActive(true);
+                    if (currentV1.Count == 1) {
+                        pathInfo[w * 3 + m].text = "Distance = " + (Mathf.Round(totalLength * 1000) / 1000);
+                    } else {
+                        pathInfo[w * 3 + m].text = "Average distance = " + (Mathf.Round(totalLength / currentV1.Count * 1000) / 1000) + 
+                            "  Average time = " + (Mathf.Round((Time.realtimeSinceStartup - startTime) / currentV1.Count * 100000) / 100) + "ms";
+                    }
+                } else {
+                    pathInfo[w * 3 + m].gameObject.SetActive(false);
                 }
             }
         }
@@ -111,7 +160,7 @@ public class Main : MonoBehaviour {
         int worldIndex = index / 3;
         int methodIndex = index % 3;
         RandomTestWorldMethod[worldIndex, methodIndex] = !RandomTestWorldMethod[worldIndex, methodIndex];
-        if (currentV2 != null) {
+        if (currentV1 != null && currentV1.Count == 1) {
             TestPathFinding();
         }
     }
@@ -290,10 +339,6 @@ public class Main : MonoBehaviour {
     float mouseClickHeight;
     // Update is called once per frame
     void Update() {
-        if (Input.GetKeyDown(KeyCode.Space)) {
-            RandomTest();
-            //TestScene3(100);
-        }
 
         for (int i = 0; i < 8; i++) {
             if (Input.GetKeyDown(KeyCode.Alpha1 + i)) {
@@ -304,7 +349,7 @@ public class Main : MonoBehaviour {
             ClearVoxels();
         }
 
-        if (Input.GetMouseButtonDown(0)) {
+        if (Input.GetMouseButtonDown(0) && ships.Count > 0) {
             if (!choosing) {
                 Ray ray = cam.ScreenPointToRay(Input.mousePosition);
                 RaycastHit hit;
