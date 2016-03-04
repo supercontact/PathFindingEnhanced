@@ -21,10 +21,12 @@ public class SpaceUnit : MonoBehaviour {
     public float repulsivePow = 1.5f;
 
     public bool attackable = true;
+    public float returnRange = 6f;
     public float enemyCheckRange = 4.5f;
     public float enemyCheckInterval = 0.5f;
     public float startChaseRange = 2.5f;
     public float chaseRange = 1.5f;
+    public float standReturnRange = 0.5f;
 
     public List<Weapon> weapons;
 
@@ -40,7 +42,7 @@ public class SpaceUnit : MonoBehaviour {
 
     public Vector3 velocity;
     public Vector3 position;
-    public bool active = true;
+    public Vector3 standPoint;
 
     public Queue<Vector3> wayPoints;
     public float wayPointRange;
@@ -52,8 +54,9 @@ public class SpaceUnit : MonoBehaviour {
     private float pathFindingRecheckTimer = 1f;
 
     // Use this for initialization
-    void Start () {
+    void Start() {
         position = transform.position;
+        standPoint = position;
 	}
 
     // Update is called once per frame
@@ -92,6 +95,7 @@ public class SpaceUnit : MonoBehaviour {
                     nextSpot = next + ((lastWayPoint == Vector3.zero || wayPoints.Count == 1) ? Vector3.zero : (next - lastWayPoint).normalized * wayPointRange);
                 } else if (state == UnitState.MOVING) {
                     state = UnitState.IDLE;
+                    standPoint = lastWayPoint;
                 }
             }
         }
@@ -166,6 +170,10 @@ public class SpaceUnit : MonoBehaviour {
             target = null;
         }
 
+        if ((position - standPoint).magnitude > standReturnRange) {
+            MoveOrder(standPoint, defaultWayPointRange);
+        }
+
         if (enemyCheckTimer > 0) {
             enemyCheckTimer -= Time.deltaTime;
         } else if (state == UnitState.IDLE || state == UnitState.MOVING) {
@@ -184,11 +192,18 @@ public class SpaceUnit : MonoBehaviour {
                 Vector3 chasePos = target.position + (position - target.position).normalized * chaseRange;
                 wayPoints.Enqueue(chasePos);
                 wayPointRange = defaultWayPointRange;
-            }
+            }            
             enemyCheckTimer += enemyCheckInterval;
+        }
+
+        if (target != null && state == UnitState.IDLE && ((target.position - position).magnitude > enemyCheckRange || (position - standPoint).magnitude > returnRange || false)) {
+            MoveOrder(standPoint, defaultWayPointRange);
         }
     }
 
+    public void MoveOrder(Vector3 targetPoint, float range) {
+        MoveOrder(spaceGraph.FindPath(spaceGraph.LazyThetaStar, position, targetPoint, space), range);
+    }
 
     public void MoveOrder(List<Node> wp, float range) {
         if (wp == null || !movable) return;
