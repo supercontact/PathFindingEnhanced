@@ -15,6 +15,7 @@ public class Octree
 
     public static int[,] dir = { { 1, 0, 0 }, { -1, 0, 0 }, { 0, 1, 0 }, { 0, -1, 0 }, { 0, 0, 1 }, { 0, 0, -1 } };
     public static int[,] cornerDir = { { 0, 0, 0 }, { 1, 0, 0 }, { 1, 1, 0 }, { 0, 1, 0 }, { 0, 0, 1 }, { 1, 0, 1 }, { 1, 1, 1 }, { 0, 1, 1 } };
+    public static int[,] edgeDir = { { 0, 1, 1 }, { 0, 1, -1 }, { 0, -1, 1 }, { 0, -1, -1 }, { 1, 0, 1 }, { -1, 0, 1 }, { 1, 0, -1 }, { -1, 0, -1 }, { 1, 1, 0 }, { 1, -1, 0 }, { -1, 1, 0 }, { -1, -1, 0 } };
 
     public Octree(float _size, Vector3 _corner, int _maxLevel) {
         size = _size;
@@ -315,7 +316,7 @@ public class Octree
 
     public Graph cornerGraph;
     public Dictionary<long, Node> cornerGraphDictionary;
-    public Graph ToCornerGraph() {
+    public Graph ToCornerGraphOld() {
         List<OctreeNode> leaves = root.Leaves();
         Dictionary<long, Node> dict = new Dictionary<long, Node>();
 		Dictionary<long, bool> arcAdded = new Dictionary<long, bool>();
@@ -352,6 +353,101 @@ public class Octree
                             n1.arcs.Add(new Arc(n1, n2));
                             n2.arcs.Add(new Arc(n2, n1));
                         }
+                    }
+                }
+            }
+        }
+        Graph g = new Graph();
+        g.nodes = nodes;
+        g.CalculateConnectivity();
+        g.type = Graph.GraphType.CORNER;
+        cornerGraph = g;
+        cornerGraphDictionary = dict;
+        return g;
+    }
+
+    public int[][] ThreeNeighborDir(int[] edgeDir) {
+        int zeroIndex = -1;
+        for (int i = 0; i < 3; i++) {
+            if (edgeDir[i] == 0) {
+                zeroIndex = i;
+                break;
+            }
+        }
+        int[][] result = new int[3][];
+        for (int i = 0; i < 3; i++) {
+            result[i] = new int[3];
+            for (int j = 0; j < 3; j++) {
+                result[i][j] = edgeDir[j];
+            }
+        }
+        result[0][(zeroIndex + 1) % 3] = 0;
+        result[2][(zeroIndex + 2) % 3] = 0;
+        return result;
+    }
+
+    public int[][] ArcVertexDir(int[] edgeDir) {
+        int zeroIndex = -1;
+        for (int i = 0; i < 3; i++) {
+            if (edgeDir[i] == 0) {
+                zeroIndex = i;
+                break;
+            }
+        }
+        int[][] result = new int[2][];
+        for (int i = 0; i < 2; i++) {
+            result[i] = new int[3];
+            for (int j = 0; j < 3; j++) {
+                result[i][j] = edgeDir[j];
+            }
+        }
+        result[0][zeroIndex] = 1;
+        result[1][zeroIndex] = -1;
+        return result;
+    }
+
+    public Graph ToCornerGraph() {
+        List<OctreeNode> leaves = root.Leaves();
+        Dictionary<long, Node> dict = new Dictionary<long, Node>();
+        Dictionary<long, bool> arcAdded = new Dictionary<long, bool>();
+        List<Node> nodes = new List<Node>();
+
+        foreach (OctreeNode o in leaves) {
+            for (int i = 0; i < 12; i++) {
+                int[][] threeNeighborDir = ThreeNeighborDir(new int[] { edgeDir[i,0], edgeDir[i,1], edgeDir[i,2]});
+                bool draw;
+                if (o.blocked) {
+                    draw = false;
+                    for (int j = 0; j < 3; j++) {
+                        draw = !IsBlocked(new int[] { o.index[0] + threeNeighborDir[j][0], o.index[1] + threeNeighborDir[j][1], o.index[2] + threeNeighborDir[j][2] });
+                        if (draw) break;
+                    }
+                } else {
+                    draw = true;
+                    for (int j = 0; j < 3; j++) {
+                        OctreeNode found = Find(new int[] { o.index[0] + threeNeighborDir[j][0], o.index[1] + threeNeighborDir[j][1], o.index[2] + threeNeighborDir[j][2] }, o.level);
+                        if (found != null && found.level == o.level && found.children != null) {
+                            draw = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (draw) {
+                    int[][] arcVertexCoord = ArcVertexDir(new int[] { edgeDir[i, 0], edgeDir[i, 1], edgeDir[i, 2] });
+                    for (int j = 0; j < 2; j++) {
+                        for (int k = 0; k < 3; k++) {
+                            arcVertexCoord[j][k] = (o.index[k] * 2 + 1 + arcVertexCoord[j][k]) / 2 * (1 << (maxLevel - o.level));
+                        }
+                    }
+                    long arcKey = GetArcKey(arcVertexCoord[0], arcVertexCoord[1]);
+                    bool temp;
+                    if (!arcAdded.TryGetValue(arcKey, out temp)) {
+                        arcAdded[arcKey] = true;
+                        Node n1 = GetNodeFromDict(arcVertexCoord[0], dict, nodes);
+                        Node n2 = GetNodeFromDict(arcVertexCoord[1], dict, nodes);
+                        n1.arcs.Add(new Arc(n1, n2));
+                        n2.arcs.Add(new Arc(n2, n1));
                     }
                 }
             }
