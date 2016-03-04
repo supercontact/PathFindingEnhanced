@@ -8,6 +8,11 @@ public class Commanding {
     public Octree space;
     public Graph spaceGraph;
 
+    public Commanding(World world) {
+        activeUnits = new List<SpaceUnit>();
+        this.space = world.space;
+        this.spaceGraph = world.spaceGraph;
+    }
     public Commanding(Octree space, Graph spaceGraph) {
         activeUnits = new List<SpaceUnit>();
         this.space = space;

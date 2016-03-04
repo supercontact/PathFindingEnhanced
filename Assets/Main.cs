@@ -7,57 +7,44 @@ public class Main : MonoBehaviour {
     public Camera cam;
     public GameObject obj;
     public GameObject mark;
-    //public Quadtree tree;
-    //public Octree tree1;
-    //public Octree tree2;
-    public SpaceUnit[] ships;
+    public GameObject ship;
     public static float defaultShipSize = 0.1f;
     public static float defaultWaypointSize = 0.2f;
 
-    public Material line1;
-    public Material line2;
-
     Mesh mesh;
-    //Geometry geo;
-    //Graph graph1;
-    //Graph graph2;
 
     World[] worlds;
+    List<SpaceUnit> ships = new List<SpaceUnit>();
 
     Commanding command;
 
 	// Use this for initialization
 	void Start () {
-        worlds = new World[4];
-        float ext = Mathf.Max(defaultShipSize - 16f / (1 << 8) * Mathf.Sqrt(3) / 2, 0);
-        worlds[0] = new World(obj, 16, Vector3.zero, 8, ext, false, false);
-        worlds[1] = new World(worlds[0].space, true);
-        worlds[2] = new World(obj, 16, Vector3.zero, 8, ext, true, false);
-        worlds[3] = new World(worlds[2].space, true);
-        //worlds[3].space.DisplayVoxels();
 
         //mesh = MeshFactory.ReadMeshFromFile("bague", 0.6f, new Vector3(0.15f, 0.15f, 0));
         //obj.GetComponent<MeshFilter>().mesh = mesh;
-        //tree1 = new Octree(16, new Vector3(-8, -8, -8), 8);
-        //tree2 = new ProgressiveOctree(16, new Vector3(-8, -8, -8), 8);
-        //tree1.BuildFromGameObject(obj, defaultShipSize);
-        //tree2.BuildFromGameObject(obj, Mathf.Max(defaultShipSize - tree2.cellSize * Mathf.Sqrt(3) / 2, 0));
-        //tree2.TestDisplay();
-        //graph1 = tree2.ToCenterGraph();
-        //graph2 = tree2.ToCornerGraph();
-        command = new Commanding(worlds[3].space, worlds[3].spaceGraph);
-        for (int i = 0; i < ships.Length; i++) {
-            ships[i].space = worlds[3].space;
-            ships[i].spaceGraph = worlds[3].spaceGraph;
+
+        worlds = new World[5];
+        worlds[0] = new World(obj, 16, Vector3.zero, 8, 0, false, false);
+        worlds[1] = new World(worlds[0].space, true);
+        worlds[2] = new World(obj, 16, Vector3.zero, 8, 0, true, false);
+        worlds[3] = new World(worlds[2].space, true);
+        float ext = Mathf.Max(defaultShipSize - 16f / (1 << 8) * Mathf.Sqrt(3) / 2, 0);
+        worlds[4] = new World(obj, 16, Vector3.zero, 8, ext, true, true);
+
+        command = new Commanding(worlds[4]);
+        /*for (int i = 0; i < ships.Length; i++) {
+            ships[i].space = worlds[4].space;
+            ships[i].spaceGraph = worlds[4].spaceGraph;
             command.activeUnits.Add(ships[i]);
-        }
+        }*/
     }
 
-    bool displayProgressive = true;
+    bool displayExtended = false;
     bool displaying = false;
     int currentDisplayLevel = -1;
     public void DisplayVoxels(int maxLevel) {
-        Octree tree = displayProgressive ? worlds[3].space : worlds[1].space;
+        Octree tree = displayExtended ? worlds[4].space : worlds[3].space;
         if (displaying) tree.ClearDisplay();
         tree.DisplayVoxels(maxLevel);
         displaying = true;
@@ -65,26 +52,29 @@ public class Main : MonoBehaviour {
     }
     public void ClearVoxels() {
         if (displaying) {
-            Octree tree = displayProgressive ? worlds[3].space : worlds[1].space;
+            Octree tree = displayExtended ? worlds[4].space : worlds[3].space;
             tree.ClearDisplay();
             displaying = false;
         }
     }
     public void DisplaySwitchTree(bool on) {
-        if (on != displayProgressive) {
+        if (on != displayExtended) {
             if (displaying) {
                 ClearVoxels();
-                displayProgressive = !displayProgressive;
+                displayExtended = !displayExtended;
                 DisplayVoxels(currentDisplayLevel);
             } else {
-                displayProgressive = !displayProgressive;
+                displayExtended = !displayExtended;
             }
         }
     }
 
     int RandomTestNumber = 1;
-    bool[,] RandomTestWorldMethod = { { false, false, false }, { false, false, true }, { false, false, false }, { false, false, true } };
-    void RandomTest () {
+    bool[,] RandomTestWorldMethod = { { false, false, false }, { false, false, false }, { false, false, true }, { false, false, true } };
+    public Material[] lines;
+    Vector3 currentV1 = Vector3.zero;
+    List<Vector3> currentV2 = null;
+    public void RandomTest () {
         /*int i1 = Random.Range(0, graph.nodes.Count);
         int[] i2 = { Random.Range(0, graph.nodes.Count) , Random.Range(0, graph.nodes.Count) , Random.Range(0, graph.nodes.Count) };
         List<List<Node>> paths = graph.FindPath(graph.LazyThetaStar, graph.nodes[i1], new List<Node>() { graph.nodes[i2[0]], graph.nodes[i2[1]], graph.nodes[i2[2]] }, tree2);*/
@@ -94,15 +84,58 @@ public class Main : MonoBehaviour {
         for (int i = 0; i < RandomTestNumber; i++) {
             v2.Add(new Vector3(Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f)));
         }
-        List<List<Node>> paths1 = worlds[2].spaceGraph.FindPath(worlds[2].spaceGraph.LazyThetaStar, v1, v2, worlds[2].space);
-        List<List<Node>> paths2 = worlds[3].spaceGraph.FindPath(worlds[3].spaceGraph.LazyThetaStar, v1, v2, worlds[3].space);
+        currentV1 = v1;
+        currentV2 = v2;
+        TestPathFinding();
+    }
 
+    void TestPathFinding() {
         ClearDisplay();
-        foreach (List<Node> path in paths1) {
-            DrawPath(path, line1);
+        for (int w = 0; w < 4; w++) {
+            for (int m = 0; m < 3; m++) {
+                if (RandomTestWorldMethod[w, m]) {
+                    Graph.PathFindingMethod method;
+                    if (m == 0) method = worlds[w].spaceGraph.AStar;
+                    else if (m == 1) method = worlds[w].spaceGraph.ThetaStar;
+                    else method = worlds[w].spaceGraph.LazyThetaStar;
+                    List<List<Node>> paths = worlds[w].spaceGraph.FindPath(method, currentV1, currentV2, worlds[w].space);
+                    foreach (List<Node> path in paths) {
+                        DrawPath(path, lines[w * 3 + m]);
+                    }
+                }
+            }
         }
-        foreach (List<Node> path in paths2) {
-            DrawPath(path, line2);
+    }
+
+    public void ToggleTest(int index) {
+        int worldIndex = index / 3;
+        int methodIndex = index % 3;
+        RandomTestWorldMethod[worldIndex, methodIndex] = !RandomTestWorldMethod[worldIndex, methodIndex];
+        if (currentV2 != null) {
+            TestPathFinding();
+        }
+    }
+
+    public void AddShip() {
+        SpaceUnit newShip = Instantiate(ship).GetComponent<SpaceUnit>();
+        int connectIndex = worlds[4].space.FindBoundingCornerGraphNodes(worlds[4].space.root.corners(0) + Vector3.one * 0.01f)[0].connectIndex;
+        Vector3 pos;
+        do {
+            pos = new Vector3(Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f));
+        } while (worlds[4].space.IsBlocked(worlds[4].space.PositionToIndex(pos)) && worlds[4].space.FindBoundingCornerGraphNodes(pos)[0].connectIndex != connectIndex);
+
+        newShip.transform.position = pos;
+        newShip.space = worlds[4].space;
+        newShip.spaceGraph = worlds[4].spaceGraph;
+        command.activeUnits.Add(newShip);
+        ships.Add(newShip);
+    }
+
+    public void RemoveShip() {
+        if (ships.Count > 0) {
+            Destroy(ships[ships.Count - 1].gameObject);
+            ships.RemoveAt(ships.Count - 1);
+            command.activeUnits.RemoveAt(command.activeUnits.Count - 1);
         }
     }
 
@@ -227,7 +260,9 @@ public class Main : MonoBehaviour {
             display.Add(m);
             m.transform.position = node.center;
             if (i == 0) {
-                m.transform.localScale = Vector3.one * 0.2f;
+                m.transform.localScale = Vector3.one * 0.1f;
+            } else {
+                m.transform.localScale = Vector3.one * 0.03f;
             }
             pathV[i] = node.center;
             i++;
