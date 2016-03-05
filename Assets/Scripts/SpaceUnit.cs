@@ -175,6 +175,11 @@ public class SpaceUnit : MonoBehaviour {
         Rigidbody body = GetComponent<Rigidbody>();
         body.velocity = Vector3.zero;
         body.angularVelocity = Vector3.zero;
+        if (Settings.showShipTrajectory) {
+            DrawTrajectory();
+        } else if (line != null) {
+            ClearTrajectory();
+        }
     }
 
     private void PassiveAttackUpdate() {
@@ -210,6 +215,30 @@ public class SpaceUnit : MonoBehaviour {
 
         if (target != null && state == UnitState.IDLE && ((target.position - position).magnitude > enemyCheckRange || (position - standPoint).magnitude > returnRange || false)) {
             MoveOrder(standPoint, defaultWayPointRange);
+        }
+    }
+
+    private LineRenderer line = null;
+    public void DrawTrajectory() {
+        if (line == null) {
+            line = new GameObject().AddComponent<LineRenderer>();
+            line.SetWidth(0.01f, 0.01f);
+            line.material = GameObject.Find("LineMaterial").GetComponent<MeshRenderer>().sharedMaterial;
+        }
+        if (wayPoints != null && wayPoints.Count > 0) {
+            line.SetVertexCount(wayPoints.Count + 1);
+            line.SetPosition(0, position);
+            int t = 1;
+            foreach (Vector3 pos in wayPoints) {
+                line.SetPosition(t++, pos);
+            }
+        } else {
+            line.SetVertexCount(0);
+        }
+    }
+    public void ClearTrajectory() {
+        if (line != null) {
+            Destroy(line.gameObject);
         }
     }
 

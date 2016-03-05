@@ -12,4 +12,6 @@ public class Settings {
 	/// </summary>
 	public static double cotLimit = 10000;
 
+    public static bool showShipTrajectory = false;
+
 }

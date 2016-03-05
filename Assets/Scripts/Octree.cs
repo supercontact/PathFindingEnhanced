@@ -314,56 +314,6 @@ public class Octree
         return g;
     }
 
-    /*public Graph ToCornerGraphOld() {
-        List<OctreeNode> leaves = root.Leaves();
-        Dictionary<long, Node> dict = new Dictionary<long, Node>();
-		Dictionary<long, bool> arcAdded = new Dictionary<long, bool>();
-        List<Node> nodes = new List<Node>();
-
-        foreach (OctreeNode o in leaves) {
-            for (int i = 0; i < 6; i++) {
-                OctreeNode found = Find(new int[] { o.index[0] + dir[i, 0], o.index[1] + dir[i, 1], o.index[2] + dir[i, 2] }, o.level);
-                if ((!o.blocked && (found == null || found.blocked || found.children == null)) || (found != null && found.level < o.level)) {
-                    int k = i / 2;
-                    int[][] c = new int[4][];
-                    int counter = 0;
-                    for (int t1 = -1; t1 <= 1; t1 += 2) {
-                        for (int t2 = -1; t2 <= 1; t2 += 2) {
-                            c[counter] = new int[3];
-                            c[counter][k] = dir[i, k];
-                            c[counter][(k + 1) % 3] = t1;
-                            c[counter][(k + 2) % 3] = t2 * t1;
-                            for (int j = 0; j < 3; j++) {
-                                c[counter][j] += o.index[j] * 2 + 1;
-                                c[counter][j] /= 2;
-                                c[counter][j] <<= (maxLevel - o.level);
-                            }
-                            counter++;
-                        }
-                    }
-                    for (int t = 0; t < 4; t++) {
-                        long arcKey = GetArcKey(c[t], c[(t + 1) % 4]);
-                        bool temp;
-                        if (!arcAdded.TryGetValue(arcKey, out temp)) {
-                            arcAdded[arcKey] = true;
-                            Node n1 = GetNodeFromDict(c[t], dict, nodes);
-                            Node n2 = GetNodeFromDict(c[(t + 1) % 4], dict, nodes);
-                            n1.arcs.Add(new Arc(n1, n2));
-                            n2.arcs.Add(new Arc(n2, n1));
-                        }
-                    }
-                }
-            }
-        }
-        Graph g = new Graph();
-        g.nodes = nodes;
-        g.CalculateConnectivity();
-        g.type = Graph.GraphType.CORNER;
-        cornerGraph = g;
-        cornerGraphDictionary = dict;
-        return g;
-    }*/
-
     public Graph cornerGraph;
     public Dictionary<long, Node> cornerGraphDictionary;
     public Graph ToCornerGraph() {

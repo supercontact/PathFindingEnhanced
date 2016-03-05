@@ -32,20 +32,20 @@ public class Arc
     }
 }
 
-public class AstarNodeInfo : Node {
+public class NodeInfo : Node {
 	public float f, g, h;
 	public int indexTemp;
-	public AstarNodeInfo parent;
+	public NodeInfo parent;
 	public bool open = false;
 	public bool closed = false;
-	public IPriorityQueueHandle<AstarNodeInfo> handle;
-	public AstarNodeInfo(Node node) : base(node.center, node.index) {
+	public IPriorityQueueHandle<NodeInfo> handle;
+	public NodeInfo(Node node) : base(node.center, node.index) {
 		arcs = node.arcs;
 	}
 }
 
-public class NodeFComparer : IComparer<AstarNodeInfo> {
-	public int Compare (AstarNodeInfo x, AstarNodeInfo y)
+public class NodeFComparer : IComparer<NodeInfo> {
+	public int Compare (NodeInfo x, NodeInfo y)
 	{
 		return x.f - y.f > 0 ? 1 : (x.f - y.f < 0 ? -1 : 0);
 	}
@@ -104,8 +104,6 @@ public class Graph {
         Node newNode = new Node(position, -1 - temporaryNodes.Count);
         temporaryNodes.Add(newNode);
         foreach (Node neighbor in neighbors) {
-            //GameObject test = GameObject.Instantiate(GameObject.Find("Sphere"));
-            //test.transform.position = neighbor.center;
             float minDist2 = float.MaxValue;
             if (neighbor != null) {
                 newNode.arcs.Add(new Arc(newNode, neighbor));
@@ -141,7 +139,7 @@ public class Graph {
 		return (from.center - to.center).magnitude;
 	}
 
-	public List<Node> backtrack(AstarNodeInfo node) {
+	public List<Node> backtrack(NodeInfo node) {
 		List<Node> temp =  new List<Node>();
         temp.Add(node);
 		while(node.parent != null) {
@@ -197,11 +195,11 @@ public class Graph {
             h = estimatedCost;
         List<List<Node>> result = new List<List<Node>>();
 
-        Dictionary<int, AstarNodeInfo> infoTable = new Dictionary<int, AstarNodeInfo>();
-        AstarNodeInfo sourceInfo = new AstarNodeInfo(source);
+        Dictionary<int, NodeInfo> infoTable = new Dictionary<int, NodeInfo>();
+        NodeInfo sourceInfo = new NodeInfo(source);
         infoTable[sourceInfo.index] = sourceInfo;
 
-        IntervalHeap<AstarNodeInfo> open = new IntervalHeap<AstarNodeInfo>(new NodeFComparer());
+        IntervalHeap<NodeInfo> open = new IntervalHeap<NodeInfo>(new NodeFComparer());
         sourceInfo.open = true;
         sourceInfo.g = 0;
 
@@ -211,7 +209,7 @@ public class Graph {
                 sourceInfo.f = h(source, destination);
                 open.Add(ref sourceInfo.handle, sourceInfo);
             } else {
-                AstarNodeInfo destInfo;
+                NodeInfo destInfo;
                 if (infoTable.TryGetValue(destination.index, out destInfo) && destInfo.closed) {
                     result.Add(backtrack(destInfo));
                     continue;
@@ -223,24 +221,24 @@ public class Graph {
             }
 
             if (i > 0) {
-                IntervalHeap<AstarNodeInfo> newOpen = new IntervalHeap<AstarNodeInfo>(new NodeFComparer());
-                foreach (AstarNodeInfo n in open) {
+                IntervalHeap<NodeInfo> newOpen = new IntervalHeap<NodeInfo>(new NodeFComparer());
+                foreach (NodeInfo n in open) {
                     n.f = n.g + h(n, destination);
                     n.handle = null;
                     newOpen.Add(ref n.handle, n);
                 }
                 open = newOpen;
             }
-            AstarNodeInfo current = null;
+            NodeInfo current = null;
             while (open.Count > 0) {
                 current = open.DeleteMin();
                 current.open = false;
                 current.closed = true;
                 if (current.index == destination.index) break;
                 foreach (Arc a in current.arcs) {
-                    AstarNodeInfo successor;
+                    NodeInfo successor;
                     if (!infoTable.TryGetValue(a.to.index, out successor)) {
-                        successor = new AstarNodeInfo(a.to);
+                        successor = new NodeInfo(a.to);
                         successor.g = float.MaxValue;
                         successor.h = h(successor, destination);
                         infoTable[a.to.index] = successor;
@@ -282,11 +280,11 @@ public class Graph {
             h = estimatedCost;
         List<List<Node>> result = new List<List<Node>>();
 
-        Dictionary<int, AstarNodeInfo> infoTable = new Dictionary<int, AstarNodeInfo>();
-        AstarNodeInfo sourceInfo = new AstarNodeInfo(source);
+        Dictionary<int, NodeInfo> infoTable = new Dictionary<int, NodeInfo>();
+        NodeInfo sourceInfo = new NodeInfo(source);
         infoTable[sourceInfo.index] = sourceInfo;
 
-        IntervalHeap<AstarNodeInfo> open = new IntervalHeap<AstarNodeInfo>(new NodeFComparer());
+        IntervalHeap<NodeInfo> open = new IntervalHeap<NodeInfo>(new NodeFComparer());
         sourceInfo.open = true;
         sourceInfo.g = 0;
 
@@ -296,7 +294,7 @@ public class Graph {
                 sourceInfo.f = h(source, destination);
                 open.Add(ref sourceInfo.handle, sourceInfo);
             } else {
-                AstarNodeInfo destInfo;
+                NodeInfo destInfo;
                 if (infoTable.TryGetValue(destination.index, out destInfo) && destInfo.closed) {
                     result.Add(backtrack(destInfo));
                     continue;
@@ -308,8 +306,8 @@ public class Graph {
             }
 
             if (i > 0) {
-                IntervalHeap<AstarNodeInfo> newOpen = new IntervalHeap<AstarNodeInfo>(new NodeFComparer());
-                foreach (AstarNodeInfo n in open) {
+                IntervalHeap<NodeInfo> newOpen = new IntervalHeap<NodeInfo>(new NodeFComparer());
+                foreach (NodeInfo n in open) {
                     n.f = n.g + h(n, destination);
                     n.handle = null;
                     newOpen.Add(ref n.handle, n);
@@ -317,7 +315,7 @@ public class Graph {
                 open = newOpen;
             }
 
-            AstarNodeInfo current = null;
+            NodeInfo current = null;
             while (open.Count > 0) {
                 nodeCount++;
                 current = open.DeleteMin();
@@ -325,10 +323,10 @@ public class Graph {
                 current.closed = true;
                 if (current.index == destination.index) break;
                 foreach (Arc a in current.arcs) {
-                    AstarNodeInfo successor;
+                    NodeInfo successor;
                     if (!infoTable.TryGetValue(a.to.index, out successor)) {
                         newNodeCount++;
-                        successor = new AstarNodeInfo(a.to);
+                        successor = new NodeInfo(a.to);
                         successor.g = float.MaxValue;
                         successor.h = h(successor, destination);
                         infoTable[a.to.index] = successor;
@@ -336,7 +334,7 @@ public class Graph {
                     if (!successor.closed) {
                         float g_old = successor.g;
                         // ComputeCost
-                        AstarNodeInfo parent = current;
+                        NodeInfo parent = current;
                         if (parent.parent != null && space.LineOfSight(parent.parent.center, successor.center, false, type == GraphType.CENTER)) {
                             parent = parent.parent;
                         }
@@ -360,7 +358,7 @@ public class Graph {
                 result.Add(null);
                 continue;
             }
-            AstarNodeInfo check = current;
+            NodeInfo check = current;
             while (check.parent != null) {
                 while (check.parent.parent != null && space.LineOfSight(check.parent.parent.center, check.center, false, type == GraphType.CENTER)) {
                     check.parent = check.parent.parent;
@@ -384,11 +382,11 @@ public class Graph {
             h = estimatedCost;
         List<List<Node>> result = new List<List<Node>>();
 
-        Dictionary<int, AstarNodeInfo> infoTable = new Dictionary<int, AstarNodeInfo>();
-        AstarNodeInfo sourceInfo = new AstarNodeInfo(source);
+        Dictionary<int, NodeInfo> infoTable = new Dictionary<int, NodeInfo>();
+        NodeInfo sourceInfo = new NodeInfo(source);
         infoTable[sourceInfo.index] = sourceInfo;
 
-        IntervalHeap<AstarNodeInfo> open = new IntervalHeap<AstarNodeInfo>(new NodeFComparer());
+        IntervalHeap<NodeInfo> open = new IntervalHeap<NodeInfo>(new NodeFComparer());
         sourceInfo.open = true;
         sourceInfo.g = 0;
 
@@ -398,7 +396,7 @@ public class Graph {
                 sourceInfo.f = h(source, destination);
                 open.Add(ref sourceInfo.handle, sourceInfo);
             } else {
-                AstarNodeInfo destInfo;
+                NodeInfo destInfo;
                 if (infoTable.TryGetValue(destination.index, out destInfo) && destInfo.closed) {
                     result.Add(backtrack(destInfo));
                     continue;
@@ -410,8 +408,8 @@ public class Graph {
             }
 
             if (i > 0) {
-                IntervalHeap<AstarNodeInfo> newOpen = new IntervalHeap<AstarNodeInfo>(new NodeFComparer());
-                foreach (AstarNodeInfo n in open) {
+                IntervalHeap<NodeInfo> newOpen = new IntervalHeap<NodeInfo>(new NodeFComparer());
+                foreach (NodeInfo n in open) {
                     n.f = n.g + h(n, destination);
                     n.handle = null;
                     newOpen.Add(ref n.handle, n);
@@ -419,7 +417,7 @@ public class Graph {
                 open = newOpen;
             }
 
-            AstarNodeInfo current = null;
+            NodeInfo current = null;
             while (open.Count > 0) {
                 nodeCount++;
                 current = open.DeleteMin();
@@ -427,10 +425,10 @@ public class Graph {
                 current.closed = true;
                 // SetVertex
                 if (current.parent != null && !space.LineOfSight(current.parent.center, current.center, false, type == GraphType.CENTER)) {
-                    AstarNodeInfo realParent = null;
+                    NodeInfo realParent = null;
                     float realg = float.MaxValue;
                     foreach (Arc a in current.arcs) {
-                        AstarNodeInfo tempParent;
+                        NodeInfo tempParent;
                         float tempg;
                         if (infoTable.TryGetValue(a.to.index, out tempParent) && tempParent.closed) {
                             tempg = tempParent.g + (current.center - tempParent.center).magnitude;
@@ -445,10 +443,10 @@ public class Graph {
                 } //
                 if (current.index == destination.index) break;
                 foreach (Arc a in current.arcs) {
-                    AstarNodeInfo successor;
+                    NodeInfo successor;
                     if (!infoTable.TryGetValue(a.to.index, out successor)) {
                         newNodeCount++;
-                        successor = new AstarNodeInfo(a.to);
+                        successor = new NodeInfo(a.to);
                         successor.g = float.MaxValue;
                         successor.h = h(successor, destination);
                         infoTable[a.to.index] = successor;
@@ -456,7 +454,7 @@ public class Graph {
                     if (!successor.closed) {
                         float g_old = successor.g;
                         // ComputeCost
-                        AstarNodeInfo parent = current.parent == null ? current : current.parent;
+                        NodeInfo parent = current.parent == null ? current : current.parent;
                         float gNew = parent.g + (successor.center - parent.center).magnitude;
                         if (successor.g > gNew) {
                             successor.parent = parent;
@@ -476,7 +474,7 @@ public class Graph {
                 result.Add(null);
                 continue;
             }
-            AstarNodeInfo check = current;
+            NodeInfo check = current;
             while (check.parent != null) {
                 while (check.parent.parent != null && space.LineOfSight(check.parent.parent.center, check.center, false, type == GraphType.CENTER)) {
                     check.parent = check.parent.parent;
@@ -486,8 +484,7 @@ public class Graph {
             result.Add(backtrack(current));
             open.Add(ref current.handle, current);
         }
-        //Debug.Log("time: " + (Time.realtimeSinceStartup - t) + " NodeCount: " + nodeCount + " NewNodeCount: " + newNodeCount + " ResultLength: " + (result[0] != null ? result[0].Count + "" : "null"));
-        //Debug.Log("si: " + source.connectIndex + " sn: " + source.arcs.Count + " di: " + destinations[0].connectIndex + " dn: " + destinations[0].arcs.Count);
+        //Debug.Log("time: " + (Time.realtimeSinceStartup - t) + " NodeCount: " + nodeCount + " NewNodeCount: " + newNodeCount);
         return result;
     }
 }

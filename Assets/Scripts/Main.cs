@@ -22,6 +22,8 @@ public class Main : MonoBehaviour {
     public Text[] pathInfo;
     public Text realPathInfo;
 
+    public Text tutorial;
+
     public Material sky, blankSky;
 
     int sceneIndex = -1;
@@ -69,7 +71,6 @@ public class Main : MonoBehaviour {
                 ClearVoxels();
                 refreshVoxelDisplay = true;
             }
-            worlds = new World[5];
             worlds[0] = new World(scenes[sceneIndex], 16, Vector3.zero, maxLevel, 0, false, false);
             worlds[1] = new World(worlds[0].space, true);
             worlds[2] = new World(scenes[sceneIndex], 16, Vector3.zero, maxLevel, 0, true, false);
@@ -224,13 +225,31 @@ public class Main : MonoBehaviour {
         }
     }
 
+    public void ClearDisplay() {
+        foreach (GameObject g in display) {
+            GameObject.Destroy(g);
+        }
+        display.Clear();
+    }
+
+    public void ClearDisplayEntirely() {
+        ClearDisplay();
+        for (int i = 0; i < pathInfo.Length; i++) {
+            pathInfo[i].gameObject.SetActive(false);
+        }
+        realPathInfo.gameObject.SetActive(false);
+        currentV1 = null;
+        currentV2 = null;
+    }
+
+
     public void AddShip() {
         SpaceUnit newShip = Instantiate(ship).GetComponent<SpaceUnit>();
         int connectIndex;
         if (sceneIndex != 5) {
             connectIndex = worlds[4].space.FindBoundingCornerGraphNodes(worlds[4].space.root.corners(0) + Vector3.one * 0.01f)[0].connectIndex;
         } else {
-            connectIndex = worlds[4].space.FindBoundingCornerGraphNodes(worlds[4].space.root.center)[0].connectIndex;
+            connectIndex = worlds[4].space.FindBoundingCornerGraphNodes(worlds[4].space.root.center + Vector3.one * 0.01f)[0].connectIndex;
         }
         Vector3 pos;
         do {
@@ -246,6 +265,7 @@ public class Main : MonoBehaviour {
 
     public void RemoveShip() {
         if (ships.Count > 0) {
+            ships[ships.Count - 1].ClearTrajectory();
             Destroy(ships[ships.Count - 1].gameObject);
             ships.RemoveAt(ships.Count - 1);
             command.activeUnits.RemoveAt(command.activeUnits.Count - 1);
@@ -254,9 +274,20 @@ public class Main : MonoBehaviour {
 
     public void SliderValueChange(float value) {
         sliderValue.text = value + "";
+        sliderValue.color = (int)value == 9 ? Color.red : Color.white;
     }
     public void SliderConfirm() {
         ChangeMaxLevel((int) slider.value);
+    }
+
+    public void ToggleShipTrajectory(bool on) {
+        Settings.showShipTrajectory = on;
+    }
+
+    bool tutorialOn = false;
+    public void ToggleTutorial() {
+        tutorialOn = !tutorialOn;
+        tutorial.gameObject.SetActive(tutorialOn);
     }
 
 
@@ -296,22 +327,6 @@ public class Main : MonoBehaviour {
         lr.SetPositions(pathV);
         lr.SetWidth(0.01f, 0.01f);
     }
-    public void ClearDisplay() {
-        foreach (GameObject g in display) {
-            GameObject.Destroy(g);
-        }
-        display.Clear();
-    }
-    public void ClearDisplayEntirely() {
-        ClearDisplay();
-        for (int i = 0; i < pathInfo.Length; i++) {
-            pathInfo[i].gameObject.SetActive(false);
-        }
-        realPathInfo.gameObject.SetActive(false);
-        currentV1 = null;
-        currentV2 = null;
-    }
-
 
     bool choosing = false;
     GameObject mouseClickMark;
@@ -346,6 +361,7 @@ public class Main : MonoBehaviour {
                     mouseClickHeight = 0;
                     mouseClickMark = GameObject.Instantiate(mark);
                     mouseClickMark.AddComponent<LineRenderer>().SetWidth(0.02f, 0.02f);
+                    mouseClickMark.GetComponent<LineRenderer>().material = GameObject.Find("LineMaterial").GetComponent<MeshRenderer>().sharedMaterial;
                     choosing = true;
                 }
             } else {
