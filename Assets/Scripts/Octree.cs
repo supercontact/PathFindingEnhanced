@@ -314,9 +314,7 @@ public class Octree
         return g;
     }
 
-    public Graph cornerGraph;
-    public Dictionary<long, Node> cornerGraphDictionary;
-    public Graph ToCornerGraphOld() {
+    /*public Graph ToCornerGraphOld() {
         List<OctreeNode> leaves = root.Leaves();
         Dictionary<long, Node> dict = new Dictionary<long, Node>();
 		Dictionary<long, bool> arcAdded = new Dictionary<long, bool>();
@@ -364,48 +362,10 @@ public class Octree
         cornerGraph = g;
         cornerGraphDictionary = dict;
         return g;
-    }
+    }*/
 
-    public int[][] ThreeNeighborDir(int[] edgeDir) {
-        int zeroIndex = -1;
-        for (int i = 0; i < 3; i++) {
-            if (edgeDir[i] == 0) {
-                zeroIndex = i;
-                break;
-            }
-        }
-        int[][] result = new int[3][];
-        for (int i = 0; i < 3; i++) {
-            result[i] = new int[3];
-            for (int j = 0; j < 3; j++) {
-                result[i][j] = edgeDir[j];
-            }
-        }
-        result[0][(zeroIndex + 1) % 3] = 0;
-        result[2][(zeroIndex + 2) % 3] = 0;
-        return result;
-    }
-
-    public int[][] ArcVertexDir(int[] edgeDir) {
-        int zeroIndex = -1;
-        for (int i = 0; i < 3; i++) {
-            if (edgeDir[i] == 0) {
-                zeroIndex = i;
-                break;
-            }
-        }
-        int[][] result = new int[2][];
-        for (int i = 0; i < 2; i++) {
-            result[i] = new int[3];
-            for (int j = 0; j < 3; j++) {
-                result[i][j] = edgeDir[j];
-            }
-        }
-        result[0][zeroIndex] = 1;
-        result[1][zeroIndex] = -1;
-        return result;
-    }
-
+    public Graph cornerGraph;
+    public Dictionary<long, Node> cornerGraphDictionary;
     public Graph ToCornerGraph() {
         List<OctreeNode> leaves = root.Leaves();
         Dictionary<long, Node> dict = new Dictionary<long, Node>();
@@ -475,6 +435,44 @@ public class Octree
     private long GetArcKey(int[] index1, int[] index2) {
         long rowCount = 1 << (maxLevel + 1) + 1;
         return ((index1[0] + index2[0]) * rowCount + index1[1] + index2[1]) * rowCount + index1[2] + index2[2];
+    }
+    private int[][] ThreeNeighborDir(int[] edgeDir) {
+        int zeroIndex = -1;
+        for (int i = 0; i < 3; i++) {
+            if (edgeDir[i] == 0) {
+                zeroIndex = i;
+                break;
+            }
+        }
+        int[][] result = new int[3][];
+        for (int i = 0; i < 3; i++) {
+            result[i] = new int[3];
+            for (int j = 0; j < 3; j++) {
+                result[i][j] = edgeDir[j];
+            }
+        }
+        result[0][(zeroIndex + 1) % 3] = 0;
+        result[2][(zeroIndex + 2) % 3] = 0;
+        return result;
+    }
+    private int[][] ArcVertexDir(int[] edgeDir) {
+        int zeroIndex = -1;
+        for (int i = 0; i < 3; i++) {
+            if (edgeDir[i] == 0) {
+                zeroIndex = i;
+                break;
+            }
+        }
+        int[][] result = new int[2][];
+        for (int i = 0; i < 2; i++) {
+            result[i] = new int[3];
+            for (int j = 0; j < 3; j++) {
+                result[i][j] = edgeDir[j];
+            }
+        }
+        result[0][zeroIndex] = 1;
+        result[1][zeroIndex] = -1;
+        return result;
     }
 
     public List<Node> FindCorrespondingCenterGraphNode(Vector3 position) {
@@ -745,7 +743,7 @@ public class OctreeNode
                 disp.transform.position = center;
                 disp.transform.localScale = Vector3.one * size * 0.9f;
             }
-            disp.GetComponent<MeshRenderer>().material.color = containsBlocked ? Color.red : new Color(level * 0.05f, level * 0.05f, level * 0.15f);
+            disp.GetComponent<MeshRenderer>().material.color = containsBlocked ? new Color(0.7f, 0.7f, 0.7f) : new Color(level * 0.05f, level * 0.05f, level * 0.15f);
         }
     }
     public void ClearDisplay() {

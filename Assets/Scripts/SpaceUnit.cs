@@ -102,7 +102,7 @@ public class SpaceUnit : MonoBehaviour {
         if (wayPoints == null || wayPoints.Count == 0) lastWayPoint = Vector3.zero;
 
         // Check line of sight to the next way point
-        pathFindingRecheckTimer -= Time.deltaTime;
+        pathFindingRecheckTimer -= U.limitedDeltaTime;
         if (pathFindingRecheckTimer <= 0) {
             bool jumped = false;
             if (wayPoints != null && wayPoints.Count > 1) {
@@ -136,10 +136,10 @@ public class SpaceUnit : MonoBehaviour {
         if (wayPoints != null && wayPoints.Count > 0) {
             targetVelocity = (nextSpot - position).normalized * maxVelocity;
         }
-        if ((targetVelocity - velocity).sqrMagnitude < U.Sq(acceleration * Time.deltaTime)) {
+        if ((targetVelocity - velocity).sqrMagnitude < U.Sq(acceleration * U.limitedDeltaTime)) {
             velocity = targetVelocity;
         } else {
-            velocity += (targetVelocity - velocity).normalized * acceleration * Time.deltaTime;
+            velocity += (targetVelocity - velocity).normalized * acceleration * U.limitedDeltaTime;
         }
 
         // Repulsive force from SpaceUnits
@@ -150,7 +150,7 @@ public class SpaceUnit : MonoBehaviour {
                 float d = (ship.position - position).magnitude - radius - ship.radius;
                 Vector3 acc = (position - ship.position).normalized * repulsiveCoeff * Mathf.Pow(1 - Mathf.Clamp01(d / repulsiveRadius), repulsivePow);
                 //Vector3 acc = (position - ship.position).normalized * repulsiveCoeff / (d + radius) / (d + radius);
-                velocity += acc * Time.deltaTime;
+                velocity += acc * U.limitedDeltaTime;
             }
         }
 
@@ -161,16 +161,16 @@ public class SpaceUnit : MonoBehaviour {
             if (Physics.Raycast(ray, out res, radius + repulsiveRadius) && res.collider.GetComponent<SpaceUnit>() == null) {
                 float d = (res.point - position).magnitude - radius;
                 Vector3 acc = (position - res.point).normalized * repulsiveCoeff * Mathf.Pow(1 - Mathf.Clamp01(d / repulsiveRadius), repulsivePow);
-                velocity += acc * Time.deltaTime / 16 * 8;
+                velocity += acc * U.limitedDeltaTime / 16 * 8;
             }
         }
-        position += velocity * Time.deltaTime;
+        position += velocity * U.limitedDeltaTime;
 
         // Update position
         transform.position = position;
         if (targetVelocity.sqrMagnitude > 0.0001f) {
             //transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.LookRotation(targetVelocity), Time.deltaTime * 5);
-            transform.rotation = Quaternion.Lerp(Quaternion.identity, Quaternion.FromToRotation(transform.forward, targetVelocity), Time.deltaTime * 5) * transform.rotation;
+            transform.rotation = Quaternion.Lerp(Quaternion.identity, Quaternion.FromToRotation(transform.forward, targetVelocity), U.limitedDeltaTime * 5) * transform.rotation;
         }
         Rigidbody body = GetComponent<Rigidbody>();
         body.velocity = Vector3.zero;
@@ -187,7 +187,7 @@ public class SpaceUnit : MonoBehaviour {
         }
 
         if (enemyCheckTimer > 0) {
-            enemyCheckTimer -= Time.deltaTime;
+            enemyCheckTimer -= U.limitedDeltaTime;
         } else if (state == UnitState.IDLE || state == UnitState.MOVING) {
             if (target == null) {
                 SpaceUnit enemy = EnemyCheck();

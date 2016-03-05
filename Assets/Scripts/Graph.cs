@@ -274,7 +274,7 @@ public class Graph {
 
 
     public List<List<Node>> ThetaStar(Node source, List<Node> destinations, Octree space, H h = null) {
-        float t = Time.realtimeSinceStartup;
+        //float t = Time.realtimeSinceStartup;
         int nodeCount = 0;
         int newNodeCount = 0;
 
@@ -376,7 +376,7 @@ public class Graph {
 
 
     public List<List<Node>> LazyThetaStar(Node source, List<Node> destinations, Octree space, H h = null) {
-        float t = Time.realtimeSinceStartup;
+        //float t = Time.realtimeSinceStartup;
         int nodeCount = 0;
         int newNodeCount = 0;
 

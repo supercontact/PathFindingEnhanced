@@ -20,4 +20,8 @@ public class U {
     public static float Sq(float n) {
         return n * n;
     }
+
+    public static float limitedDeltaTime {
+        get { return Mathf.Min(Time.deltaTime, 0.1f); }
+    }
 }

@@ -12,10 +12,20 @@ public class Main : MonoBehaviour {
     public static float defaultShipSize = 0.1f;
     public static float defaultWaypointSize = 0.2f;
 
-    public float[,] randomRangeSource = { { -2, 2, -2, 2, -2, 2 }, { -2, 0, -2, 0, -2, -0.2f }, { -1, 1, -1, 1, -2, -1.1f } };
-    public float[,] randomRangeDestination = { { -2, 2, -2, 2, -2, 2 }, { -2, 0, -2, 0, 0.2f, 2 }, { -1, 1, -1, 1, 1.1f, 2 } };
+    public float[,] randomRangeSource = { { -2, 2, -2, 2, -2, 2 }, { -2, 2, -2, 2, -2, 2 }, { -2, 0, -2, 0, -2, -0.2f }, { -2, 0, -2, 0, -2, -0.2f }, { -1, 1, -1, 1, -2, -1.1f }, { -2, 2, -2, 2, -2, 2 } };
+    public float[,] randomRangeDestination = { { -2, 2, -2, 2, -2, 2 }, { -2, 2, -2, 2, -2, 2 }, { -2, 0, -2, 0, 0.2f, 2 }, { -2, 0, -2, 0, 0.2f, 2 }, { -1, 1, -1, 1, 1.1f, 2 }, { -2, 2, -2, 2, -2, 2 } };
+
+    public Slider slider;
+    public Text sliderValue;
+
+    public Material[] lines;
+    public Text[] pathInfo;
+    public Text realPathInfo;
+
+    public Material sky, blankSky;
 
     int sceneIndex = -1;
+    int maxLevel = 8;
     World[] worlds;
     List<SpaceUnit> ships = new List<SpaceUnit>();
 
@@ -33,21 +43,44 @@ public class Main : MonoBehaviour {
     public void LoadScene(int index) {
         if (sceneIndex != index) {
             ClearVoxels();
-            ClearDisplay();
+            ClearDisplayEntirely();
             while (ships.Count > 0) RemoveShip();
 
             if (sceneIndex >= 0) scenes[sceneIndex].SetActive(false);
             scenes[index].SetActive(true);
             worlds = new World[5];
-            worlds[0] = new World(scenes[index], 16, Vector3.zero, 8, 0, false, false);
+            worlds[0] = new World(scenes[index], 16, Vector3.zero, maxLevel, 0, false, false);
             worlds[1] = new World(worlds[0].space, true);
-            worlds[2] = new World(scenes[index], 16, Vector3.zero, 8, 0, true, false);
+            worlds[2] = new World(scenes[index], 16, Vector3.zero, maxLevel, 0, true, false);
             worlds[3] = new World(worlds[2].space, true);
             float ext = Mathf.Max(defaultShipSize - 16f / (1 << 8) * Mathf.Sqrt(3) / 2, 0);
             worlds[4] = new World(scenes[index], 16, Vector3.zero, 8, ext, true, true);
 
             command = new Commanding(worlds[4]);
             sceneIndex = index;
+        }
+    }
+
+    public void ChangeMaxLevel(int level) {
+        if (maxLevel != level) {
+            maxLevel = level;
+            bool refreshVoxelDisplay = false;
+            if (displaying) {
+                ClearVoxels();
+                refreshVoxelDisplay = true;
+            }
+            worlds = new World[5];
+            worlds[0] = new World(scenes[sceneIndex], 16, Vector3.zero, maxLevel, 0, false, false);
+            worlds[1] = new World(worlds[0].space, true);
+            worlds[2] = new World(scenes[sceneIndex], 16, Vector3.zero, maxLevel, 0, true, false);
+            worlds[3] = new World(worlds[2].space, true);
+
+            if (refreshVoxelDisplay) {
+                DisplayVoxels(currentDisplayLevel);
+            }
+            if (currentV1 != null) {
+                TestPathFinding();
+            }
         }
     }
 
@@ -83,8 +116,6 @@ public class Main : MonoBehaviour {
 
     int RandomTestNumber = 1;
     bool[,] RandomTestWorldMethod = { { false, false, false }, { false, false, false }, { false, false, true }, { false, false, true } };
-    public Material[] lines;
-    public Text[] pathInfo;
     List<Vector3> currentV1 = null;
     List<List<Vector3>> currentV2 = null;
     public void RandomTest (int n) {
@@ -144,14 +175,42 @@ public class Main : MonoBehaviour {
                     }
                     pathInfo[w * 3 + m].gameObject.SetActive(true);
                     if (currentV1.Count == 1) {
-                        pathInfo[w * 3 + m].text = "Distance = " + (Mathf.Round(totalLength * 1000) / 1000);
+                        pathInfo[w * 3 + m].text = "Distance = " + (Mathf.Round(totalLength * 10000) / 10000) + 
+                            "  Time = " + (Mathf.Round((Time.realtimeSinceStartup - startTime) * 100000) / 100) + "ms";
                     } else {
-                        pathInfo[w * 3 + m].text = "Average distance = " + (Mathf.Round(totalLength / currentV1.Count * 1000) / 1000) + 
+                        pathInfo[w * 3 + m].text = "Average distance = " + (Mathf.Round(totalLength / currentV1.Count * 10000) / 10000) + 
                             "  Average time = " + (Mathf.Round((Time.realtimeSinceStartup - startTime) / currentV1.Count * 100000) / 100) + "ms";
                     }
                 } else {
                     pathInfo[w * 3 + m].gameObject.SetActive(false);
                 }
+            }
+        }
+        if (sceneIndex == 2 || sceneIndex == 3 || sceneIndex == 4) {
+            float totalLength = 0;
+            for (int i = 0; i < currentV1.Count; i++) {
+                for (int j = 0; j < currentV2[i].Count; j++) {
+                    Vector3 s = currentV1[i];
+                    Vector3 d = currentV2[i][j];
+                    if (sceneIndex == 2) {
+                        totalLength += Mathf.Sqrt(Mathf.Min(
+                            U.Sq(s.x - d.x) + U.Sq(Mathf.Sqrt(U.Sq(s.z + 1.0f / 16) + s.y * s.y) + 1.0f / 16 + Mathf.Sqrt(d.z * d.z + d.y * d.y)),
+                            U.Sq(s.y - d.y) + U.Sq(Mathf.Sqrt(U.Sq(s.z + 1.0f / 16) + s.x * s.x) + 1.0f / 16 + Mathf.Sqrt(d.z * d.z + d.x * d.x))));
+                    } else if (sceneIndex == 3) {
+                        totalLength += Mathf.Sqrt(Mathf.Min(
+                            U.Sq(s.x - d.x) + U.Sq(Mathf.Sqrt(s.z * s.z + s.y * s.y) + 1.0f / 16 + Mathf.Sqrt(U.Sq(d.z - 1.0f / 16) + d.y * d.y)),
+                            U.Sq(s.y - d.y) + U.Sq(Mathf.Sqrt(s.z * s.z + s.x * s.x) + 1.0f / 16 + Mathf.Sqrt(U.Sq(d.z - 1.0f / 16) + d.x * d.x))));
+                    } else if (sceneIndex == 4) {
+                        float angle = Vector3.Angle(s, d) * Mathf.Deg2Rad - Mathf.Acos(1 / s.magnitude) - Mathf.Acos(1 / d.magnitude);
+                        totalLength += angle > 0 ? Mathf.Sqrt(s.sqrMagnitude - 1) + Mathf.Sqrt(d.sqrMagnitude - 1) + angle : (d - s).magnitude;
+                    }
+                }
+            }
+            realPathInfo.gameObject.SetActive(true);
+            if (currentV1.Count == 1) {
+                realPathInfo.text = "Real distance = " + (Mathf.Round(totalLength * 10000) / 10000);
+            } else {
+                realPathInfo.text = "Real average distance = " + (Mathf.Round(totalLength / currentV1.Count * 10000) / 10000);
             }
         }
     }
@@ -167,11 +226,16 @@ public class Main : MonoBehaviour {
 
     public void AddShip() {
         SpaceUnit newShip = Instantiate(ship).GetComponent<SpaceUnit>();
-        int connectIndex = worlds[4].space.FindBoundingCornerGraphNodes(worlds[4].space.root.corners(0) + Vector3.one * 0.01f)[0].connectIndex;
+        int connectIndex;
+        if (sceneIndex != 5) {
+            connectIndex = worlds[4].space.FindBoundingCornerGraphNodes(worlds[4].space.root.corners(0) + Vector3.one * 0.01f)[0].connectIndex;
+        } else {
+            connectIndex = worlds[4].space.FindBoundingCornerGraphNodes(worlds[4].space.root.center)[0].connectIndex;
+        }
         Vector3 pos;
         do {
             pos = new Vector3(Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f));
-        } while (worlds[4].space.IsBlocked(worlds[4].space.PositionToIndex(pos)) && worlds[4].space.FindBoundingCornerGraphNodes(pos)[0].connectIndex != connectIndex);
+        } while (worlds[4].space.IsBlocked(worlds[4].space.PositionToIndex(pos)) || worlds[4].space.FindBoundingCornerGraphNodes(pos)[0].connectIndex != connectIndex);
 
         newShip.transform.position = pos;
         newShip.space = worlds[4].space;
@@ -188,107 +252,15 @@ public class Main : MonoBehaviour {
         }
     }
 
-    /*int testTimes = 0;
-    float[] totalTime = new float[7];
-    float[] totalLength = new float[7];
-    void TestScene1(int times = 1) {
-        for (int i = 0; i < times; i++) {
-            testTimes++;
-            float t;
-            Vector3 s = new Vector3(Random.Range(-2.0f, 0f), Random.Range(-2.0f, 0f), Random.Range(-2.0f, -0.2f));
-            Vector3 d = new Vector3(Random.Range(-2.0f, 0f), Random.Range(-2.0f, 0f), Random.Range(0.2f, 2.0f));
-            t = Time.realtimeSinceStartup;
-            totalLength[0] += PathLength(graph1.FindPath(graph1.AStar, s, d, tree1));
-            totalTime[0] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[1] += PathLength(graph1.FindPath(graph1.ThetaStar, s, d, tree1));
-            totalTime[1] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[2] += PathLength(graph1.FindPath(graph1.LazyThetaStar, s, d, tree1));
-            totalTime[2] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[3] += PathLength(graph2.FindPath(graph2.AStar, s, d, tree2));
-            totalTime[3] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[4] += PathLength(graph2.FindPath(graph2.ThetaStar, s, d, tree2));
-            totalTime[4] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[5] += PathLength(graph2.FindPath(graph2.LazyThetaStar, s, d, tree2));
-            totalTime[5] += Time.realtimeSinceStartup - t;
-
-            totalLength[6] += Mathf.Sqrt(Mathf.Min(
-                U.Sq(s.x - d.x) + U.Sq(Mathf.Sqrt(s.z * s.z + s.y * s.y) + 1.0f / 16 + Mathf.Sqrt(U.Sq(d.z - 1.0f / 16) + d.y * d.y)),
-                U.Sq(s.y - d.y) + U.Sq(Mathf.Sqrt(s.z * s.z + s.x * s.x) + 1.0f / 16 + Mathf.Sqrt(U.Sq(d.z - 1.0f / 16) + d.x * d.x))));
-        }
-        for (int i = 0; i < 7; i++) {
-            Debug.Log(i + ": Average Time " + (totalTime[i] / testTimes) + "s Average Length " + (totalLength[i] / totalLength[6]) + " times: " + testTimes);
-        }
+    public void SliderValueChange(float value) {
+        sliderValue.text = value + "";
+    }
+    public void SliderConfirm() {
+        ChangeMaxLevel((int) slider.value);
     }
 
-    void TestScene2(int times = 1) {
-        for (int i = 0; i < times; i++) {
-            testTimes++;
-            float t;
-            Vector3 s = new Vector3(Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f), Random.Range(-2.0f, -1.1f));
-            Vector3 d = new Vector3(Random.Range(-1.0f, 1.0f), Random.Range(-1.0f, 1.0f), Random.Range(1.1f, 2.0f));
-            t = Time.realtimeSinceStartup;
-            totalLength[0] += PathLength(graph1.FindPath(graph1.AStar, s, d, tree1));
-            totalTime[0] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[1] += PathLength(graph1.FindPath(graph1.ThetaStar, s, d, tree1));
-            totalTime[1] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[2] += PathLength(graph1.FindPath(graph1.LazyThetaStar, s, d, tree1));
-            totalTime[2] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[3] += PathLength(graph2.FindPath(graph2.AStar, s, d, tree2));
-            totalTime[3] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[4] += PathLength(graph2.FindPath(graph2.ThetaStar, s, d, tree2));
-            totalTime[4] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[5] += PathLength(graph2.FindPath(graph2.LazyThetaStar, s, d, tree2));
-            totalTime[5] += Time.realtimeSinceStartup - t;
 
-            float angle = Vector3.Angle(s, d) * Mathf.Deg2Rad - Mathf.Acos(1/s.magnitude) - Mathf.Acos(1/d.magnitude);
-            totalLength[6] += angle > 0 ? Mathf.Sqrt(s.sqrMagnitude - 1) + Mathf.Sqrt(d.sqrMagnitude - 1) + angle : (d - s).magnitude;
-        }
-        for (int i = 0; i < 7; i++) {
-            Debug.Log(i + ": Average Time " + (totalTime[i] / testTimes) + "s Average Length " + (totalLength[i] / totalLength[6]) + " times: " + testTimes);
-        }
-    }
-
-    void TestScene3(int times = 1) {
-        for (int i = 0; i < times; i++) {
-            testTimes++;
-            float t;
-            Vector3 s = new Vector3(Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f));
-            Vector3 d = new Vector3(Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f));
-            t = Time.realtimeSinceStartup;
-            totalLength[0] += PathLength(graph1.FindPath(graph1.AStar, s, d, tree1));
-            totalTime[0] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[1] += PathLength(graph1.FindPath(graph1.ThetaStar, s, d, tree1));
-            totalTime[1] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[2] += PathLength(graph1.FindPath(graph1.LazyThetaStar, s, d, tree1));
-            totalTime[2] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[3] += PathLength(graph2.FindPath(graph2.AStar, s, d, tree2));
-            totalTime[3] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[4] += PathLength(graph2.FindPath(graph2.ThetaStar, s, d, tree2));
-            totalTime[4] += Time.realtimeSinceStartup - t;
-            t = Time.realtimeSinceStartup;
-            totalLength[5] += PathLength(graph2.FindPath(graph2.LazyThetaStar, s, d, tree2));
-            totalTime[5] += Time.realtimeSinceStartup - t;
-        }
-        for (int i = 0; i < 6; i++) {
-            Debug.Log(i + ": Average Time " + (totalTime[i] / testTimes) + "s Average Length " + (totalLength[i] / testTimes) + " times: " + testTimes);
-        }
-    }*/
-
-    float PathLength(List<Node> path) {
+    public float PathLength(List<Node> path) {
         if (path == null) return 0;
         float result = 0;
         Node prev = path[0];
@@ -300,7 +272,7 @@ public class Main : MonoBehaviour {
     }
 
     List<GameObject> display = new List<GameObject>();
-    void DrawPath(List<Node> path, Material mat) {
+    public void DrawPath(List<Node> path, Material mat) {
         if (path == null) return;
         Vector3[] pathV = new Vector3[path.Count];
         int i = 0;
@@ -324,11 +296,20 @@ public class Main : MonoBehaviour {
         lr.SetPositions(pathV);
         lr.SetWidth(0.01f, 0.01f);
     }
-    void ClearDisplay() {
+    public void ClearDisplay() {
         foreach (GameObject g in display) {
             GameObject.Destroy(g);
         }
         display.Clear();
+    }
+    public void ClearDisplayEntirely() {
+        ClearDisplay();
+        for (int i = 0; i < pathInfo.Length; i++) {
+            pathInfo[i].gameObject.SetActive(false);
+        }
+        realPathInfo.gameObject.SetActive(false);
+        currentV1 = null;
+        currentV2 = null;
     }
 
 
@@ -337,16 +318,22 @@ public class Main : MonoBehaviour {
     Vector3 mouseClickOrigin;
     Vector3 mouseClickNormal;
     float mouseClickHeight;
+    bool useBlankSky = false;
     // Update is called once per frame
     void Update() {
 
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < 9; i++) {
             if (Input.GetKeyDown(KeyCode.Alpha1 + i)) {
                 DisplayVoxels(i + 1);
             }
         }
         if (Input.GetKeyDown(KeyCode.BackQuote)) {
             ClearVoxels();
+        }
+
+        if (Input.GetKeyDown(KeyCode.I)) {
+            useBlankSky = !useBlankSky;
+            RenderSettings.skybox = useBlankSky ? blankSky : sky;
         }
 
         if (Input.GetMouseButtonDown(0) && ships.Count > 0) {
