@@ -384,5 +384,9 @@ public class Main : MonoBehaviour {
             mouseClickMark.GetComponent<LineRenderer>().SetPosition(1, mouseClickMark.transform.position);
             //Debug.Log(mouseClickMark.transform.position);
         }
+
+        if (Input.GetKey(KeyCode.Escape)) {
+            Application.Quit();
+        }
     }
 }

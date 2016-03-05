@@ -60,9 +60,6 @@
     <Reference Include="UnityEditor">
       <HintPath>Library\UnityAssemblies\UnityEditor.dll</HintPath>
     </Reference>
-    <Reference Include="alglibnet2">
-      <HintPath>Assets\alglibnet2.dll</HintPath>
-    </Reference>
     <Reference Include="C5">
       <HintPath>Assets\C5.dll</HintPath>
     </Reference>
