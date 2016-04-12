@@ -371,9 +371,76 @@ public class Octree
         return g;
     }
 
+    public Graph crossedGraph;
+    public Dictionary<long, Node> crossedGraphDictionary;
+    public Dictionary<OctreeNode, HashSet<Node>> crossedGraphBoundingNodesDictionary;
+    public Graph ToCrossedGraph() {
+        List<OctreeNode> leaves = root.Leaves();
+        Dictionary<long, Node> dict = new Dictionary<long, Node>();
+        Dictionary<OctreeNode, HashSet<Node>> dictNodes = new Dictionary<OctreeNode, HashSet<Node>>();
+        Dictionary<string, bool> arcAdded = new Dictionary<string, bool>();
+        List<Node> nodes = new List<Node>();
+        List<int[]> coords = new List<int[]>();
+
+        foreach (OctreeNode o in leaves) {
+            if (!o.blocked) {
+                for (int i = 0; i < 8; i++) {
+                    int[] index = o.cornerIndex(i);
+                    long key = GetNodeKey(index);
+                    if (!dict.ContainsKey(key)) {
+                        Node node = GetNodeFromDict(index, dict, nodes);
+                        coords.Add(index);
+                        for (int j = 0; j < 8; j++) {
+                            int[] gridIndex = new int[] { index[0] - 1 + cornerDir[j,0], index[1] - 1 + cornerDir[j, 1], index[2] - 1 + cornerDir[j, 2] };
+                            OctreeNode voxel = Find(gridIndex);
+                            if (voxel != null && !voxel.blocked) {
+                                if (!dictNodes.ContainsKey(voxel)) {
+                                    dictNodes.Add(voxel, new HashSet<Node> { node });
+                                } else {
+                                    dictNodes[voxel].Add(node);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        foreach (OctreeNode voxel in dictNodes.Keys) {
+            List<Node> enclosingNodes = new List<Node>(dictNodes[voxel]);
+            for (int i = 0; i < enclosingNodes.Count - 1; i++) {
+                for (int j = i + 1; j < enclosingNodes.Count; j++) {
+                    Node n1 = enclosingNodes[i];
+                    Node n2 = enclosingNodes[j];
+                    int[] coord1 = coords[n1.index];
+                    int[] coord2 = coords[n2.index];
+                    if (( coord1[0] == coord2[0] || coord1[1] == coord2[1] || coord1[2] == coord2[2]) && (coord1[0] - coord2[0]) % 2 == 0 && (coord1[1] - coord2[1]) % 2 == 0 && (coord1[2] - coord2[2]) % 2 == 0) {
+                        int[] coordM = new int[] { (coord1[0] + coord2[0]) / 2, (coord1[1] + coord2[1]) / 2, (coord1[2] + coord2[2]) / 2 };
+                        if (dict.ContainsKey(GetNodeKey(coordM))) {
+                            continue;
+                        }
+                    }
+                    string arcKey = GetArcKeyS(coord1, coord2);
+                    bool temp;
+                    if (!arcAdded.TryGetValue(arcKey, out temp)) {
+                        arcAdded[arcKey] = true;
+                        n1.arcs.Add(new Arc(n1, n2));
+                        n2.arcs.Add(new Arc(n2, n1));
+                    }
+                }
+            }
+        }
+        Graph g = new Graph();
+        g.nodes = nodes;
+        g.CalculateConnectivity();
+        g.type = Graph.GraphType.CROSSED;
+        crossedGraph = g;
+        crossedGraphDictionary = dict;
+        crossedGraphBoundingNodesDictionary = dictNodes;
+        return g;
+    }
+
     private Node GetNodeFromDict(int[] index, Dictionary<long, Node> dict, List<Node> nodes = null) {
-        long rowCount = 1 << maxLevel + 1;
-        long key = (index[0] * rowCount + index[1]) * rowCount + index[2];
+        long key = GetNodeKey(index);
         Node result = null;
         if (!dict.TryGetValue(key, out result) && nodes != null) {
             result = new Node(IndexToPosition(index), nodes.Count);
@@ -382,9 +449,16 @@ public class Octree
         }
         return result;
     }
+    private long GetNodeKey(int[] index) {
+        long rowCount = 1 << maxLevel + 1;
+        return (index[0] * rowCount + index[1]) * rowCount + index[2];
+    }
     private long GetArcKey(int[] index1, int[] index2) {
         long rowCount = 1 << (maxLevel + 1) + 1;
         return ((index1[0] + index2[0]) * rowCount + index1[1] + index2[1]) * rowCount + index1[2] + index2[2];
+    }
+    private string GetArcKeyS(int[] index1, int[] index2) {
+        return "" + (char)index1[0] + (char)index1[1] + (char)index1[2] + (char)index2[0] + (char)index2[1] + (char)index2[2];
     }
     private int[][] ThreeNeighborDir(int[] edgeDir) {
         int zeroIndex = -1;
@@ -448,6 +522,15 @@ public class Octree
                     Debug.Log(position + " " + cornerIndex[0] + " " + cornerIndex[1] + " " + cornerIndex[2]);
                 }
             }
+        }
+        return result;
+    }
+
+    public List<Node> FindBoundingCrossedGraphNodes(Vector3 position) {
+        List<Node> result = new List<Node>();
+        OctreeNode node = Find(position);
+        if (node != null && crossedGraphBoundingNodesDictionary.ContainsKey(node)) {
+            return new List<Node>(crossedGraphBoundingNodesDictionary[node]);
         }
         return result;
     }

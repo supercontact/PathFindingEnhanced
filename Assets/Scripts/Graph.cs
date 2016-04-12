@@ -59,6 +59,7 @@ public class Graph {
     {
         CENTER,
         CORNER,
+        CROSSED,
         OTHER
     }
     public GraphType type = GraphType.OTHER;
@@ -139,7 +140,7 @@ public class Graph {
 		return (from.center - to.center).magnitude;
 	}
 
-	public List<Node> backtrack(NodeInfo node) {
+	public List<Node> Backtrack(NodeInfo node) {
 		List<Node> temp =  new List<Node>();
         temp.Add(node);
 		while(node.parent != null) {
@@ -172,6 +173,8 @@ public class Graph {
             sourceNeighbors = space.FindCorrespondingCenterGraphNode(source);
         } else if (type == GraphType.CORNER) {
             sourceNeighbors = space.FindBoundingCornerGraphNodes(source);
+        } else if (type == GraphType.CROSSED) {
+            sourceNeighbors = space.FindBoundingCrossedGraphNodes(source);
         }
         Node tempSourceNode = AddTemporaryNode(source, sourceNeighbors);
         List<Node> tempDestinationNodes = new List<Node>();
@@ -181,6 +184,8 @@ public class Graph {
                 destinationNeighbors = space.FindCorrespondingCenterGraphNode(destination);
             } else if (type == GraphType.CORNER) {
                 destinationNeighbors = space.FindBoundingCornerGraphNodes(destination);
+            } else if (type == GraphType.CROSSED) {
+                destinationNeighbors = space.FindBoundingCrossedGraphNodes(destination);
             }
             tempDestinationNodes.Add(AddTemporaryNode(destination, destinationNeighbors));
         }
@@ -211,7 +216,7 @@ public class Graph {
             } else {
                 NodeInfo destInfo;
                 if (infoTable.TryGetValue(destination.index, out destInfo) && destInfo.closed) {
-                    result.Add(backtrack(destInfo));
+                    result.Add(Backtrack(destInfo));
                     continue;
                 }
             }
@@ -264,7 +269,7 @@ public class Graph {
                 result.Add(null);
                 continue;
             }
-            result.Add(backtrack(current));
+            result.Add(Backtrack(current));
             open.Add(ref current.handle, current);
         }
         return result;
@@ -296,7 +301,7 @@ public class Graph {
             } else {
                 NodeInfo destInfo;
                 if (infoTable.TryGetValue(destination.index, out destInfo) && destInfo.closed) {
-                    result.Add(backtrack(destInfo));
+                    result.Add(Backtrack(destInfo));
                     continue;
                 }
             }
@@ -365,7 +370,7 @@ public class Graph {
                 }
                 check = check.parent;
             }
-            result.Add(backtrack(current));
+            result.Add(Backtrack(current));
             open.Add(ref current.handle, current);
         }
         //Debug.Log("time: " + (Time.realtimeSinceStartup - t) + " NodeCount: " + nodeCount + " NewNodeCount: " + newNodeCount);
@@ -398,7 +403,7 @@ public class Graph {
             } else {
                 NodeInfo destInfo;
                 if (infoTable.TryGetValue(destination.index, out destInfo) && destInfo.closed) {
-                    result.Add(backtrack(destInfo));
+                    result.Add(Backtrack(destInfo));
                     continue;
                 }
             }
@@ -481,7 +486,7 @@ public class Graph {
                 }
                 check = check.parent;
             }
-            result.Add(backtrack(current));
+            result.Add(Backtrack(current));
             open.Add(ref current.handle, current);
         }
         //Debug.Log("time: " + (Time.realtimeSinceStartup - t) + " NodeCount: " + nodeCount + " NewNodeCount: " + newNodeCount);

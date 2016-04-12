@@ -29,6 +29,7 @@ public class Main : MonoBehaviour {
     int sceneIndex = -1;
     int maxLevel = 8;
     World[] worlds;
+    World shipWorld;
     List<SpaceUnit> ships = new List<SpaceUnit>();
 
     Commanding command;
@@ -51,14 +52,15 @@ public class Main : MonoBehaviour {
             if (sceneIndex >= 0) scenes[sceneIndex].SetActive(false);
             scenes[index].SetActive(true);
             worlds = new World[5];
-            worlds[0] = new World(scenes[index], 16, Vector3.zero, maxLevel, 0, false, false);
-            worlds[1] = new World(worlds[0].space, true);
-            worlds[2] = new World(scenes[index], 16, Vector3.zero, maxLevel, 0, true, false);
-            worlds[3] = new World(worlds[2].space, true);
+            worlds[0] = new World(scenes[index], 16, Vector3.zero, maxLevel, 0, false, Graph.GraphType.CENTER);
+            worlds[1] = new World(worlds[0].space, Graph.GraphType.CORNER);
+            worlds[2] = new World(scenes[index], 16, Vector3.zero, maxLevel, 0, true, Graph.GraphType.CENTER);
+            worlds[3] = new World(worlds[2].space, Graph.GraphType.CORNER);
+            worlds[4] = new World(worlds[2].space, Graph.GraphType.CROSSED);
             float ext = Mathf.Max(defaultShipSize - 16f / (1 << 8) * Mathf.Sqrt(3) / 2, 0);
-            worlds[4] = new World(scenes[index], 16, Vector3.zero, 8, ext, true, true);
+            shipWorld = new World(scenes[index], 16, Vector3.zero, 8, ext, true, Graph.GraphType.CORNER);
 
-            command = new Commanding(worlds[4]);
+            command = new Commanding(shipWorld);
             sceneIndex = index;
         }
     }
@@ -71,10 +73,11 @@ public class Main : MonoBehaviour {
                 ClearVoxels();
                 refreshVoxelDisplay = true;
             }
-            worlds[0] = new World(scenes[sceneIndex], 16, Vector3.zero, maxLevel, 0, false, false);
-            worlds[1] = new World(worlds[0].space, true);
-            worlds[2] = new World(scenes[sceneIndex], 16, Vector3.zero, maxLevel, 0, true, false);
-            worlds[3] = new World(worlds[2].space, true);
+            worlds[0] = new World(scenes[sceneIndex], 16, Vector3.zero, maxLevel, 0, false, Graph.GraphType.CENTER);
+            worlds[1] = new World(worlds[0].space, Graph.GraphType.CORNER);
+            worlds[2] = new World(scenes[sceneIndex], 16, Vector3.zero, maxLevel, 0, true, Graph.GraphType.CENTER);
+            worlds[3] = new World(worlds[2].space, Graph.GraphType.CORNER);
+            worlds[4] = new World(worlds[2].space, Graph.GraphType.CROSSED);
 
             if (refreshVoxelDisplay) {
                 DisplayVoxels(currentDisplayLevel);
@@ -90,7 +93,7 @@ public class Main : MonoBehaviour {
     bool displaying = false;
     int currentDisplayLevel = -1;
     public void DisplayVoxels(int maxLevel) {
-        Octree tree = displayExtended ? worlds[4].space : worlds[3].space;
+        Octree tree = displayExtended ? shipWorld.space : worlds[3].space;
         if (displaying) tree.ClearDisplay();
         tree.DisplayVoxels(maxLevel);
         displaying = true;
@@ -98,7 +101,7 @@ public class Main : MonoBehaviour {
     }
     public void ClearVoxels() {
         if (displaying) {
-            Octree tree = displayExtended ? worlds[4].space : worlds[3].space;
+            Octree tree = displayExtended ? shipWorld.space : worlds[3].space;
             tree.ClearDisplay();
             displaying = false;
         }
@@ -116,7 +119,7 @@ public class Main : MonoBehaviour {
     }
 
     int RandomTestNumber = 1;
-    bool[,] RandomTestWorldMethod = { { false, false, false }, { false, false, false }, { false, false, true }, { false, false, true } };
+    bool[,] RandomTestWorldMethod = { { false, false, false }, { false, false, false }, { false, false, false }, { false, false, true }, { false, false, true } };
     List<Vector3> currentV1 = null;
     List<List<Vector3>> currentV2 = null;
     public void RandomTest (int n) {
@@ -158,7 +161,7 @@ public class Main : MonoBehaviour {
 
     void TestPathFinding() {
         ClearDisplay();
-        for (int w = 0; w < 4; w++) {
+        for (int w = 0; w < 5; w++) {
             for (int m = 0; m < 3; m++) {
                 if (RandomTestWorldMethod[w, m]) {
                     Graph.PathFindingMethod method;
@@ -247,18 +250,18 @@ public class Main : MonoBehaviour {
         SpaceUnit newShip = Instantiate(ship).GetComponent<SpaceUnit>();
         int connectIndex;
         if (sceneIndex != 5) {
-            connectIndex = worlds[4].space.FindBoundingCornerGraphNodes(worlds[4].space.root.corners(0) + Vector3.one * 0.01f)[0].connectIndex;
+            connectIndex = shipWorld.space.FindBoundingCornerGraphNodes(shipWorld.space.root.corners(0) + Vector3.one * 0.01f)[0].connectIndex;
         } else {
-            connectIndex = worlds[4].space.FindBoundingCornerGraphNodes(worlds[4].space.root.center + Vector3.one * 0.01f)[0].connectIndex;
+            connectIndex = shipWorld.space.FindBoundingCornerGraphNodes(shipWorld.space.root.center + Vector3.one * 0.01f)[0].connectIndex;
         }
         Vector3 pos;
         do {
             pos = new Vector3(Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f), Random.Range(-2.0f, 2.0f));
-        } while (worlds[4].space.IsBlocked(worlds[4].space.PositionToIndex(pos)) || worlds[4].space.FindBoundingCornerGraphNodes(pos)[0].connectIndex != connectIndex);
+        } while (shipWorld.space.IsBlocked(shipWorld.space.PositionToIndex(pos)) || shipWorld.space.FindBoundingCornerGraphNodes(pos)[0].connectIndex != connectIndex);
 
         newShip.transform.position = pos;
-        newShip.space = worlds[4].space;
-        newShip.spaceGraph = worlds[4].spaceGraph;
+        newShip.space = shipWorld.space;
+        newShip.spaceGraph = shipWorld.spaceGraph;
         command.activeUnits.Add(newShip);
         ships.Add(newShip);
     }
